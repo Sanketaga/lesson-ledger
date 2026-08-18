@@ -89,6 +89,15 @@ export const catalog: CatalogVideo[] = [
   },
 ];
 
+export function filterCatalog(topic: Topic, searchTerm: string) {
+  const needle = searchTerm.trim().toLowerCase();
+  return catalog.filter((video) => {
+    const topicMatches = topic === "All" || video.topic === topic;
+    const textMatches = !needle || [video.title, video.channel, video.topic, video.note, video.level].join(" ").toLowerCase().includes(needle);
+    return topicMatches && textMatches;
+  });
+}
+
 export const topics: Array<{ name: Topic; count: number; accent: string }> = [
   { name: "All", count: catalog.length, accent: "bg-[#08756A]" },
   { name: "Mathematics", count: 2, accent: "bg-[#4A648D]" },

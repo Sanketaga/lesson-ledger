@@ -2,3 +2,6 @@
 - [x] Replace the Field Notes Library direction in ideas.md with the reference as the ground-truth visual specification.
 - [x] Recompose the catalog home page as an immersive, reference-inspired focus room while preserving topic filtering, video playback, URL import, and the reserved provider state.
 - [x] Verify responsive visual fidelity and core catalog flows; save a revision checkpoint for delivery.
+- [x] Define how unmatched catalog queries call an optional no-key live-search provider and return to the local shelf when unavailable.
+- [x] Implement provider results, query loading feedback, and clear empty/error states without breaking direct URL import.
+- [x] Verify local matches, live-search matches, and unavailable-provider fallback; save the updated checkpoint.

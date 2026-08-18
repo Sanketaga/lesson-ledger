@@ -30,17 +30,33 @@ import {
 import { useMemo, useState } from "react";
 import {
   catalog,
+  filterCatalog,
   type CatalogVideo,
   type Topic,
   topics,
 } from "@/lib/catalog";
+import { trpc } from "@/lib/trpc";
 
 type ImportedVideo = CatalogVideo & {
   provider: "YouTube" | "Vimeo";
   isImported: true;
 };
 
-type VideoRecord = CatalogVideo | ImportedVideo;
+type LiveVideo = {
+  id: string;
+  title: string;
+  channel: string;
+  topic: Topic;
+  level: string;
+  duration: string;
+  note: string;
+  videoUrl: string;
+  embedUrl: string;
+  thumbnail: string;
+  provider: "invidious" | "piped";
+};
+
+type VideoRecord = CatalogVideo | ImportedVideo | LiveVideo;
 
 type OEmbedResult = {
   title?: string;
@@ -134,18 +150,38 @@ export default function Home() {
   const [importedVideo, setImportedVideo] = useState<ImportedVideo | null>(null);
   const [activeVideo, setActiveVideo] = useState<VideoRecord | null>(null);
 
-  const visibleCatalog = useMemo(() => {
-    const needle = searchTerm.trim().toLowerCase();
-    return catalog.filter((video) => {
-      const topicMatches = activeTopic === "All" || video.topic === activeTopic;
-      const textMatches = !needle || [video.title, video.channel, video.topic, video.note, video.level].join(" ").toLowerCase().includes(needle);
-      return topicMatches && textMatches;
-    });
-  }, [activeTopic, searchTerm]);
+  const visibleCatalog = useMemo(
+    () => filterCatalog(activeTopic, searchTerm),
+    [activeTopic, searchTerm],
+  );
+
+  const normalizedSearch = searchTerm.trim();
+  const shouldUseLiveSearch = normalizedSearch.length >= 2 && visibleCatalog.length === 0;
+  const liveSearch = trpc.liveSearch.search.useQuery(
+    { query: shouldUseLiveSearch ? normalizedSearch : "learning" },
+    { enabled: shouldUseLiveSearch, staleTime: 60_000, retry: 0 },
+  );
+  const liveLessons = useMemo<LiveVideo[]>(() => (
+    (liveSearch.data?.results ?? []).map(result => ({
+      id: `live-${result.provider}-${result.videoId}`,
+      title: result.title,
+      channel: result.channel || "Public video",
+      topic: "Technology" as Topic,
+      level: "Live search",
+      duration: result.duration,
+      note: result.note,
+      videoUrl: `https://www.youtube.com/watch?v=${result.videoId}`,
+      embedUrl: `https://www.youtube-nocookie.com/embed/${result.videoId}?rel=0`,
+      thumbnail: result.thumbnail || `https://i.ytimg.com/vi/${result.videoId}/hqdefault.jpg`,
+      provider: result.provider,
+    }))
+  ), [liveSearch.data]);
 
   const focusPick = catalog.find((video) => video.featured) ?? catalog[0];
   const showFocusPick = activeTopic === "All" && !searchTerm.trim();
   const lessonList = showFocusPick ? visibleCatalog.filter((video) => video.id !== focusPick.id) : visibleCatalog;
+  const displayedLessons: VideoRecord[] = visibleCatalog.length > 0 ? lessonList : liveLessons;
+  const hasDisplayedLessons = visibleCatalog.length > 0 || liveLessons.length > 0;
 
   const goToShelf = () => document.getElementById("learning-shelf")?.scrollIntoView({ behavior: "smooth" });
 
@@ -319,17 +355,29 @@ export default function Home() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => toast("Live search is reserved", { description: "An Invidious provider can be enabled later; the local catalog remains the reliable default." })}
+                  onClick={() => {
+                    setActiveTopic("All");
+                    setSearchTerm("learning science");
+                  }}
                   className="mt-7 flex w-full items-start gap-2 border-t border-[#DDE0E3] pt-5 text-left text-xs leading-5 text-[#777A80] transition hover:text-[#292A28]"
                 >
                   <CircleDashed className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span><strong className="font-semibold text-[#4A4C4F]">Live search</strong><br />Provider slot reserved</span>
+                  <span><strong className="font-semibold text-[#4A4C4F]">Live search</strong><br />Expand beyond this shelf</span>
                 </button>
               </aside>
 
               <div>
                 <div className="flex flex-col gap-4 border-b border-[#DDE0E3] pb-5 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="text-sm text-[#70737A]">{activeTopic === "All" ? "Every starting point" : `${activeTopic} lessons`} <span className="text-[#A0A3A7]">· {visibleCatalog.length} available</span></p>
+                  <p className="text-sm text-[#70737A]">
+                    {shouldUseLiveSearch
+                      ? liveSearch.isFetching
+                        ? "Searching beyond the shelf…"
+                        : liveLessons.length
+                          ? `Live results via ${liveSearch.data?.source === "invidious" ? "Invidious" : "a public provider"}`
+                          : "Expanded search"
+                      : activeTopic === "All" ? "Every starting point" : `${activeTopic} lessons`}
+                    <span className="text-[#A0A3A7]"> · {shouldUseLiveSearch ? liveLessons.length : visibleCatalog.length} available</span>
+                  </p>
                   <label className="relative block w-full sm:w-[285px]">
                     <span className="sr-only">Search the learning shelf</span>
                     <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#90939A]" />
@@ -345,7 +393,7 @@ export default function Home() {
                   </button>
                 )}
 
-                {visibleCatalog.length ? (
+                {hasDisplayedLessons ? (
                   <div className="mt-6 space-y-6">
                     {showFocusPick && (
                       <button type="button" onClick={() => setActiveVideo(focusPick)} className="group grid w-full overflow-hidden border border-[#D8DBDE] bg-white text-left outline-none transition hover:border-[#7A7E83] focus-visible:ring-2 focus-visible:ring-[#20211F] sm:grid-cols-[minmax(0,1.15fr)_minmax(260px,0.85fr)]">
@@ -363,14 +411,14 @@ export default function Home() {
                       </button>
                     )}
                     <div className="grid gap-3 sm:grid-cols-2">
-                      {lessonList.map((video, index) => <VideoLesson key={video.id} video={video} index={index + (showFocusPick ? 1 : 0)} onOpen={setActiveVideo} />)}
+                      {displayedLessons.map((video, index) => <VideoLesson key={video.id} video={video} index={index + (showFocusPick ? 1 : 0)} onOpen={setActiveVideo} />)}
                     </div>
                   </div>
                 ) : (
                   <div className="mt-6 border border-dashed border-[#CDD1D5] bg-white px-6 py-16 text-center">
-                    <Sparkles className="mx-auto h-5 w-5 text-[#7C8085]" />
-                    <h3 className="mt-4 font-display text-3xl">Nothing matching that phrase yet.</h3>
-                    <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#74777D]">Try a broader search, browse every topic, or paste a direct learning link.</p>
+                    {liveSearch.isFetching ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#7C8085]" /> : <Sparkles className="mx-auto h-5 w-5 text-[#7C8085]" />}
+                    <h3 className="mt-4 font-display text-3xl">{liveSearch.isFetching ? "Looking beyond the shelf." : shouldUseLiveSearch ? "No lesson surfaced for that yet." : "Nothing matching that phrase yet."}</h3>
+                    <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#74777D]">{shouldUseLiveSearch ? liveSearch.data?.message || "The optional public providers did not return a match. Try a more specific topic or phrase." : "Try a broader search, browse every topic, or paste a direct learning link."}</p>
                     <Button type="button" variant="outline" onClick={() => { setActiveTopic("All"); setSearchTerm(""); }} className="mt-5 border-[#BFC3C7] bg-white text-[#292A28] hover:bg-[#F0F1F2]">View every lesson</Button>
                   </div>
                 )}
@@ -397,7 +445,7 @@ export default function Home() {
             <div className="flex items-center gap-2.5"><span className="flex h-8 w-8 items-center justify-center border border-white/40 font-display text-lg italic">L</span><span className="font-display text-2xl">Lesson Ledger</span></div>
             <p className="mt-4 max-w-sm text-sm leading-6 text-white/62">A focused learning shelf built from useful educational video.</p>
           </div>
-          <div className="text-xs text-white/52 sm:text-right"><p>Catalog + direct URL mode</p><p className="mt-2">Live search provider reserved</p></div>
+          <div className="text-xs text-white/52 sm:text-right"><p>Catalog + direct URL mode</p><p className="mt-2">Optional live discovery enabled</p></div>
         </div>
       </footer>
 
