@@ -44,6 +44,28 @@ Do not copy the reference’s logo, copywriting, routes, or trademarked brand na
 
 Search is a commitment, not a filter. A submitted learning request now opens a dedicated course workspace without topic controls. The workspace places one embedded lesson beside a numbered outline, keeps progress visible, and does not offer an exit to an external video page. The learner can change subject deliberately through a single course-building input rather than returning to a distracting catalog grid.
 
+## Student Learning Loop
+
+The first learning loop is intentionally lightweight and browser-persisted so a student can begin without an account. Each course keeps a learner-defined outcome, an active lesson for resuming, completed lessons, timestamped notes, and one short recall response per lesson. Auto-advance is on by default; once a lesson is marked complete, the next lesson begins after a short, visible transition. Students can turn it off when they prefer a deliberate pause.
+
+The focused course now renders the learning goal, auto-advance control, notes composer, completion action, and progress count alongside the ordered lesson outline. The next validation step exercises persistence and the auto-advance learning loop in the interactive workspace.
+
+Interactive validation confirms that a student goal can be entered and a note saved against a manual timestamp. The saved note is immediately shown under the active lesson as `02:15 · Variables store values I can reuse.`
+
+Completion updates course progress from `0/8` to `1/8`, reveals the recall prompt, and auto-advances to Lesson 02 on its three-second countdown. The final design must preserve an opportunity to save the recall response rather than letting the automatic transition hide it.
+
+After reload, the course resumed at Lesson 02 with the first lesson still marked complete, the `1/8` progress count preserved, and the student goal retained. The revised interface clearly communicates an eight-second reflection window and its pause-on-writing behavior.
+
+The completion-control interaction needs a fresh, deterministic browser validation after the hot-reloaded course state settled; the persisted progress and resumed position remain intact.
+
+The owned completion action was exercised deterministically. Without any student input during the reflection window, the course advanced automatically from Lesson 02 to Lesson 03, started the next lesson state, and persisted progress at `2/8`.
+
+On Lesson 03, completion displayed the recall prompt, the explanatory pause-on-writing message, and an eight-second next-lesson countdown while updating persisted progress to `3/8`. The interactive test needs to place focus in that prompt before the countdown elapses.
+
+Entering a reflection immediately after completion cancelled the countdown. More than eight seconds later, the course remained on Lesson 03 with the written response still present, confirming that a student can think and write without being pushed ahead.
+
+The saved reflection action closed the recall prompt while keeping the learner on the same course route. The final validation confirms that this response is retained with the rest of the student learning record.
+
 ### Validation Observation
 
 The dedicated `/learn/<query>` route resolves an ordinary request into an eight-lesson in-site course workspace. The route shows a single embedded lesson, a numbered outline with a visible current lesson, and no topic section. Application navigation returns only to the library; Lesson Ledger itself provides no external-source action in the focused workspace.

@@ -17,4 +17,11 @@
 - [x] Target a visible provider-link region beneath the guarded frame and confirm that the Lesson Ledger overlay intercepts the pointer without external navigation.
 - [x] Add native inertness to the provider frame and re-check that its external controls are non-interactive in the focused workspace.
 - [x] Directly test a visibly rendered provider link after native inertness and confirm the course route remains unchanged.
+- [x] Prioritize student-centered learning features before choosing the next implementation milestone.
+- [x] Define data for lesson goals, timestamped notes, recall checks, progress/resume state, and auto-advance preferences.
+- [x] Design the focused course controls for notes, recall, learning progress, and next-lesson playback.
+- [x] Implement the student learning loop with persistent student-owned data and configurable auto-advance.
+- [x] Validate notes, completion, resume, recall, and auto-advance flows; save the resulting checkpoint.
+- [x] Keep the recall prompt available when auto-advance is enabled, so a student can save a reflection before moving on.
+- [x] Keep the recall prompt available when auto-advance is enabled, so a student can save a reflection before moving on.
 - [x] Re-validate lesson switching, responsive playback, and removal of external video controls before saving the focused-course checkpoint.
