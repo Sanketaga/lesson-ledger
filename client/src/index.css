@@ -1,6 +1,6 @@
 /**
- * FIELD NOTES LIBRARY — Warm paper, tactile rules, Ledger Verdigris, and restrained editorial motion.
- * These tokens should support the catalog-drawer layout rather than generic rounded-card UI.
+ * FOCUS-ROOM REFERENCE — Minimal editorial learning workspace, cool whites, quiet geometry.
+ * Preserve space and high-contrast serif hierarchy; avoid the earlier paper catalog aesthetic.
  */
 @import "tailwindcss";
 @import "tw-animate-css";
@@ -9,7 +9,7 @@
 
 @theme inline {
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Fraunces", Georgia, serif;
+  --font-display: "Instrument Serif", Georgia, serif;
   --radius-sm: 0px;
   --radius-md: 0px;
   --radius-lg: 0px;
@@ -36,103 +36,95 @@
 }
 
 :root {
-  --background: oklch(0.962 0.012 86);
-  --foreground: oklch(0.29 0.022 145);
-  --card: oklch(0.993 0.006 82);
-  --card-foreground: oklch(0.29 0.022 145);
-  --popover: oklch(0.993 0.006 82);
-  --popover-foreground: oklch(0.29 0.022 145);
-  --primary: oklch(0.45 0.09 174);
-  --primary-foreground: oklch(0.99 0.008 88);
-  --secondary: oklch(0.927 0.017 88);
-  --secondary-foreground: oklch(0.35 0.021 145);
-  --muted: oklch(0.932 0.012 87);
-  --muted-foreground: oklch(0.52 0.015 145);
-  --accent: oklch(0.9 0.034 174);
-  --accent-foreground: oklch(0.33 0.058 174);
-  --destructive: oklch(0.56 0.165 28);
+  --background: oklch(0.99 0.001 100);
+  --foreground: oklch(0.24 0.005 120);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.24 0.005 120);
+  --popover: oklch(0.99 0.001 100);
+  --popover-foreground: oklch(0.24 0.005 120);
+  --primary: oklch(0.24 0.005 120);
+  --primary-foreground: oklch(0.99 0.001 100);
+  --secondary: oklch(0.96 0.005 240);
+  --secondary-foreground: oklch(0.34 0.006 120);
+  --muted: oklch(0.96 0.004 240);
+  --muted-foreground: oklch(0.54 0.007 240);
+  --accent: oklch(0.96 0.005 240);
+  --accent-foreground: oklch(0.3 0.006 120);
+  --destructive: oklch(0.56 0.17 27);
   --destructive-foreground: oklch(0.99 0 0);
-  --border: oklch(0.84 0.015 87);
-  --input: oklch(0.84 0.015 87);
-  --ring: oklch(0.45 0.09 174);
+  --border: oklch(0.88 0.005 240);
+  --input: oklch(0.88 0.005 240);
+  --ring: oklch(0.24 0.005 120);
   --radius: 0px;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
-* {
-  border-color: var(--border);
-}
+* { border-color: var(--border); }
 
-html {
-  scroll-behavior: smooth;
-}
+html { scroll-behavior: smooth; }
 
 body {
   min-width: 320px;
-  background-color: #F5F0E6;
-  background-image:
-    radial-gradient(rgba(65, 70, 60, 0.075) 0.65px, transparent 0.65px),
-    radial-gradient(rgba(255, 255, 255, 0.7) 0.65px, transparent 0.65px);
-  background-position: 0 0, 4px 4px;
-  background-size: 8px 8px;
-  color: #29332D;
+  background: #FBFBFA;
+  color: #20211F;
   font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
-button,
-a,
-input {
-  -webkit-tap-highlight-color: transparent;
+button, a, input { -webkit-tap-highlight-color: transparent; }
+button:not(:disabled), [role="button"]:not([aria-disabled="true"]), [type="button"]:not(:disabled), [type="submit"]:not(:disabled), a[href] { cursor: pointer; }
+
+.font-display { font-family: "Instrument Serif", Georgia, serif; }
+
+.hero-orb {
+  position: absolute;
+  border-radius: 999px;
+  opacity: 0.9;
+  pointer-events: none;
 }
 
-button:not(:disabled),
-[role="button"]:not([aria-disabled="true"]),
-[type="button"]:not(:disabled),
-[type="submit"]:not(:disabled),
-a[href] {
-  cursor: pointer;
+.hero-pillow {
+  position: absolute;
+  border-radius: 999px;
+  box-shadow: 0 12px 25px rgba(105, 116, 147, 0.13), inset 0 0 0 1px rgba(150, 158, 183, 0.25);
+  pointer-events: none;
+  transform: rotate(-2deg);
 }
 
-.font-display {
-  font-family: "Fraunces", Georgia, serif;
+.dot-cluster {
+  position: absolute;
+  width: 46px;
+  height: 46px;
+  opacity: 0.5;
+  background-image: radial-gradient(circle, #9EA4B0 1px, transparent 1.3px);
+  background-size: 7px 7px;
 }
 
-.corner-notch {
-  clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 22px, 100% 100%, 0 100%);
+.lesson-card {
+  border: 1px solid #DBDEE1;
+  transition: transform 180ms var(--ease-out), border-color 180ms var(--ease-out), box-shadow 180ms var(--ease-out);
 }
 
-.catalog-card {
-  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%);
-  transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
+.lesson-card:hover {
+  border-color: #878C92;
+  box-shadow: 0 12px 22px rgba(57, 60, 66, 0.06);
+  transform: translateY(-1px);
 }
 
-.catalog-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 16px 30px rgba(75, 58, 32, 0.12);
+@media (prefers-reduced-motion: no-preference) {
+  .hero-orb { animation: ambient-drift 7s var(--ease-out) infinite alternate; }
+  .hero-pillow { animation: ambient-drift 9s var(--ease-out) infinite alternate-reverse; }
 }
 
-.card-reveal {
-  animation: catalog-enter 220ms var(--ease-out) both;
-}
-
-@keyframes catalog-enter {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+@keyframes ambient-drift {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(0, -8px, 0); }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    scroll-behavior: auto !important;
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
   }
 }

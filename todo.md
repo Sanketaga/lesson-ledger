@@ -1,0 +1,4 @@
+- [x] Inspect focusroom.club at desktop and mobile sizes; record the reference’s layout, palette, type, motion, and interaction cues.
+- [x] Replace the Field Notes Library direction in ideas.md with the reference as the ground-truth visual specification.
+- [x] Recompose the catalog home page as an immersive, reference-inspired focus room while preserving topic filtering, video playback, URL import, and the reserved provider state.
+- [x] Verify responsive visual fidelity and core catalog flows; save a revision checkpoint for delivery.

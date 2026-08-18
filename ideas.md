@@ -1,76 +1,41 @@
-# Educational Video Catalog — Design Directions
+# Educational Video Catalog — Reference Ground Truth
 
-## Three stylistic approaches
+## Supplied Reference
 
-| Theme Name | Very Brief Intro | Probability |
-| --- | --- | --- |
-| **Field Notes Library** | A warm, editorial learning archive inspired by annotated notebooks, catalog cards, and an active study desk. It makes discovery feel focused, personal, and quietly optimistic. | 0.07 |
-| **Signal Classroom** | A precise Swiss-modern interface with rigorous spacing, bold typographic hierarchy, and one electric accent. It treats learning as a clear signal amid a noisy web. | 0.03 |
-| **Archive After Dark** | A cinematic media library in deep ink with restrained spectrum color and documentary texture. It turns educational videos into a curated late-night viewing room. | 0.09 |
+The supplied reference is **https://focusroom.club/**. Its visual and interaction language is the ground-truth specification for this redesign. The work must retain the catalog’s core behavior but move decisively away from the previous Field Notes Library concept.
 
-## Chosen approach: Field Notes Library
+## Reference-derived visual system
 
 ### Design Movement
 
-**Contemporary editorial design with library-card and field-notebook influences.** The interface should feel like a reliable research shelf made tactile for the web—not a generic streaming service.
+**Airy editorial learning workspace.** The interface combines a high-key near-white canvas, large literary serif headlines, compact modern sans-serif utility text, and very restrained geometric decoration. It feels focused and deliberate rather than content-dense or app-like.
 
-### Core Principles
+### Composition
 
-1. **Curated clarity:** Information is treated as a collection of useful references, with topic, level, duration, and source always easy to scan.
-2. **Tactile restraint:** Paper warmth, soft rules, annotation marks, and lightly imperfect geometry add character without impeding reading.
-3. **Asymmetric discovery:** A persistent filter rail and a wider, responsive content field create the sense of navigating a collection rather than a landing page.
-4. **Trust made visible:** The source, learning level, duration, and direct-link behavior are explicit, while optional integrations remain clearly labeled.
+Use a slim transparent top navigation and a large centered hero. The main title should receive expansive breathing room and the primary input/action should sit immediately below it as the focal interaction. Subsequent sections alternate between oversized serif statements and lean explanatory columns. Large empty regions are intentional and must remain.
 
-### Color Philosophy
+### Color and Material
 
-The base is **paper ivory** and warm graphite to create a calm study environment rather than a clinical dashboard. **Verdigris** is the ownable signal color, used for active states and actionable paths, because it evokes found objects, library stamps, and enduring tools. A restrained rust-orange appears only as a human editorial counterpoint for featured material and subject badges.
+The dominant surface is a cool warm-white (`#FBFBFA` / `#F7F7F5`) with deeply inked charcoal text. The primary action is a dark charcoal block; accent geometry uses whisper-soft ice blue, pale lavender, and low-opacity graphite rules. Color should never compete with content. The existing verdigris, rust, paper texture, card clipping, catalog tabs, and warm-beige drawer rail are intentionally retired.
 
-### Layout Paradigm
+### Typography
 
-The experience follows a **catalog drawer layout**. A slim left rail holds the collection identity, topic filters, and the live/optional provider status. The right field begins with an angled editorial lead, then continues into a loose card index that reflows from one column to varied card spans—not a rigid centered grid. On small screens, the rail becomes a horizontal strip and the index becomes a single reading column.
+Use a high-contrast editorial serif for the hero and major section statements, supported by a clean neutral sans for utility controls and metadata. Headline scale is generous, line-height is tight, and supporting copy is light, open, and narrow. Avoid all-caps metadata systems except where essential.
 
-### Signature Elements
+### Signature Motifs
 
-1. **Catalog tabs:** tiny colored index tabs and ruled metadata strips used on cards, buttons, and sections.
-2. **Annotation marks:** small handwritten-style arrows, underlines, or badges that call attention to useful system states without becoming decoration for its own sake.
-3. **Corner cut cards:** lightly clipped or ticket-like corners used sparingly on featured content and the URL import panel.
+1. **Soft geometry:** thin circular outlines, translucent rounded squares, dotted matrices, and pill shadows around the hero—subtle enough to almost disappear.
+2. **Quiet input command:** one large bordered request field with a concise, dark rectangular action button.
+3. **Focused learning workspace:** catalog results should be organized as calm course-like rows or lesson cards with visible progress and muted source treatment, not a dense streaming grid.
 
-### Interaction Philosophy
+### Interaction and Motion
 
-Interactions should feel like pulling a card from a drawer: deliberate, quiet, and direct. Filtering is immediate, selected controls receive a strong verdigris fill, and URL import offers clear validation language. The catalog never pretends that the optional live provider is enabled.
+Hero decorations drift or fade only slightly; controls use crisp 160–200ms transitions. Search and catalog filters are immediate. Card hover should be a tiny lift and border-darkening, not a dramatic animation. Respect reduced motion.
 
-### Animation
+### Content Translation
 
-Cards enter with a 160–220ms opacity-and-translate transition, staggered by 45ms. Filter changes use a short opacity transition rather than disruptive rearrangement animation. Buttons depress to 0.97 scale on activation. Hovering a card raises its paper edge by 2px and deepens its shadow; `prefers-reduced-motion` removes all nonessential transitions.
+The hero asks what the learner wants to study. The existing local catalog becomes the “structured learning shelf” below it. Direct URL import remains a first-class path through the same central command input. Invidious remains clearly optional and unavailable by default.
 
-### Typography System
+### Restrictions
 
-**Fraunces** is used for editorial headings and numerals that need character; **DM Sans** carries navigation, metadata, and interface copy for clean legibility. Headings use compact, high-contrast scales with occasional italic emphasis. Metadata is compact, tracked slightly, and uses uppercase only for short labels.
-
-### Brand Essence
-
-**Lesson Ledger is a dependable, curated video shelf for learners who want to spend their attention on understanding—not searching.**
-
-Personality: **considered, candid, resourceful**.
-
-### Brand Voice
-
-Headlines are active and grounded, while microcopy explains what will happen without marketing hype. CTAs are short, specific verbs.
-
-> “Find the next useful explanation.”
-
-> “Paste a video link—we’ll set the context.”
-
-### Wordmark & Logo
-
-The mark is a simple **ledger tab with a play-cutout**: an offset, rounded vertical tab with a triangular notch, rendered in verdigris and rust. It works as a favicon and as a small, recognizable artifact next to the custom Fraunces wordmark.
-
-### Signature Brand Color
-
-**Ledger Verdigris — `#08756A`**
-
-## Style Decisions
-
-- Main catalog shelves use an **editorial index rhythm**: a larger featured drawer moment, catalog rules, and varied card emphasis instead of a uniform streaming grid.
-- Every platform thumbnail is visually **filed into Lesson Ledger** through an ivory paper mount, record mark, and metadata strip.
-- **Rust-orange is editorial-only**: it marks featured records, annotation stamps, and human subject cues. Ledger Verdigris remains the sole primary action and active-state color.
+Do not copy the reference’s logo, copywriting, routes, or trademarked brand name. Build an original **Lesson Ledger** experience that adopts only the reference’s broad composition, restrained visual language, and focus-first learning behavior.
