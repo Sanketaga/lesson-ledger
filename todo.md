@@ -5,3 +5,16 @@
 - [x] Define how unmatched catalog queries call an optional no-key live-search provider and return to the local shelf when unavailable.
 - [x] Implement provider results, query loading feedback, and clear empty/error states without breaking direct URL import.
 - [x] Verify local matches, live-search matches, and unavailable-provider fallback; save the updated checkpoint.
+- [x] Replace the search-to-shelf scroll with a dedicated focused course workspace for each submitted learning request.
+- [x] Remove topic controls from the learner flow and organize returned results as an ordered course with a single active lesson.
+- [x] Keep all lesson playback inside Lesson Ledger and remove the external source navigation from the focused workspace.
+- [x] Verify course search, lesson switching, and responsive in-site playback; save the updated checkpoint.
+- [x] Reconfigure the provider embed behind a Lesson Ledger-owned playback guard that prevents user access to external navigation.
+- [x] Harden the provider frame against keyboard and focus access while preserving Lesson Ledger-owned playback controls.
+- [x] Verify click, tab-focus, and lesson-switching paths cannot expose external navigation before saving the focused-course checkpoint.
+- [x] Re-test the owned play surface against provider-link clicks and confirm the overlay blocks pointer navigation.
+- [x] Save a focused-course checkpoint after final player validation.
+- [x] Target a visible provider-link region beneath the guarded frame and confirm that the Lesson Ledger overlay intercepts the pointer without external navigation.
+- [x] Add native inertness to the provider frame and re-check that its external controls are non-interactive in the focused workspace.
+- [x] Directly test a visibly rendered provider link after native inertness and confirm the course route remains unchanged.
+- [x] Re-validate lesson switching, responsive playback, and removal of external video controls before saving the focused-course checkpoint.

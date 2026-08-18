@@ -19,7 +19,6 @@ import {
   ChevronRight,
   CircleDashed,
   Clock3,
-  ExternalLink,
   Link2,
   Loader2,
   Play,
@@ -32,10 +31,9 @@ import {
   catalog,
   filterCatalog,
   type CatalogVideo,
-  type Topic,
-  topics,
 } from "@/lib/catalog";
 import { trpc } from "@/lib/trpc";
+import { useLocation } from "wouter";
 
 type ImportedVideo = CatalogVideo & {
   provider: "YouTube" | "Vimeo";
@@ -46,7 +44,7 @@ type LiveVideo = {
   id: string;
   title: string;
   channel: string;
-  topic: Topic;
+  topic: string;
   level: string;
   duration: string;
   note: string;
@@ -140,7 +138,7 @@ function VideoLesson({ video, onOpen, index }: { video: VideoRecord; onOpen: (vi
 }
 
 export default function Home() {
-  const [activeTopic, setActiveTopic] = useState<Topic>("All");
+  const [, setLocation] = useLocation();
   const [searchTerm, setSearchTerm] = useState("");
   const [heroTerm, setHeroTerm] = useState("");
   const [importOpen, setImportOpen] = useState(false);
@@ -151,8 +149,8 @@ export default function Home() {
   const [activeVideo, setActiveVideo] = useState<VideoRecord | null>(null);
 
   const visibleCatalog = useMemo(
-    () => filterCatalog(activeTopic, searchTerm),
-    [activeTopic, searchTerm],
+    () => filterCatalog("All", searchTerm),
+    [searchTerm],
   );
 
   const normalizedSearch = searchTerm.trim();
@@ -166,7 +164,7 @@ export default function Home() {
       id: `live-${result.provider}-${result.videoId}`,
       title: result.title,
       channel: result.channel || "Public video",
-      topic: "Technology" as Topic,
+      topic: "Live result",
       level: "Live search",
       duration: result.duration,
       note: result.note,
@@ -178,18 +176,12 @@ export default function Home() {
   ), [liveSearch.data]);
 
   const focusPick = catalog.find((video) => video.featured) ?? catalog[0];
-  const showFocusPick = activeTopic === "All" && !searchTerm.trim();
+  const showFocusPick = !searchTerm.trim();
   const lessonList = showFocusPick ? visibleCatalog.filter((video) => video.id !== focusPick.id) : visibleCatalog;
   const displayedLessons: VideoRecord[] = visibleCatalog.length > 0 ? lessonList : liveLessons;
   const hasDisplayedLessons = visibleCatalog.length > 0 || liveLessons.length > 0;
 
   const goToShelf = () => document.getElementById("learning-shelf")?.scrollIntoView({ behavior: "smooth" });
-
-  const chooseTopic = (topic: Topic) => {
-    setActiveTopic(topic);
-    setSearchTerm("");
-    goToShelf();
-  };
 
   const handleHeroSearch = () => {
     const value = heroTerm.trim();
@@ -203,9 +195,7 @@ export default function Home() {
       setImportOpen(true);
       return;
     }
-    setActiveTopic("All");
-    setSearchTerm(value);
-    goToShelf();
+    setLocation(`/learn/${encodeURIComponent(value)}`);
   };
 
   const importVideo = async () => {
@@ -335,37 +325,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="mt-8 grid gap-8 lg:grid-cols-[200px_minmax(0,1fr)] lg:gap-12">
-              <aside className="lg:pt-2">
-                <p className="mb-3 text-[10px] font-semibold uppercase tracking-[0.18em] text-[#858890]">Topics</p>
-                <div className="flex flex-wrap gap-2 lg:flex-col lg:items-stretch">
-                  {topics.map((topic) => (
-                    <button
-                      key={topic.name}
-                      type="button"
-                      onClick={() => {
-                        setActiveTopic(topic.name);
-                        setSearchTerm("");
-                      }}
-                      className={`flex items-center justify-between gap-4 border px-3 py-2.5 text-left text-sm transition ${activeTopic === topic.name ? "border-[#292A28] bg-[#292A28] text-white" : "border-transparent text-[#686B70] hover:border-[#D4D7DB] hover:bg-white"}`}
-                    >
-                      <span>{topic.name}</span><span className={activeTopic === topic.name ? "text-white/60" : "text-[#A0A3A7]"}>{topic.count}</span>
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setActiveTopic("All");
-                    setSearchTerm("learning science");
-                  }}
-                  className="mt-7 flex w-full items-start gap-2 border-t border-[#DDE0E3] pt-5 text-left text-xs leading-5 text-[#777A80] transition hover:text-[#292A28]"
-                >
-                  <CircleDashed className="mt-0.5 h-4 w-4 shrink-0" />
-                  <span><strong className="font-semibold text-[#4A4C4F]">Live search</strong><br />Expand beyond this shelf</span>
-                </button>
-              </aside>
-
+            <div className="mt-8">
               <div>
                 <div className="flex flex-col gap-4 border-b border-[#DDE0E3] pb-5 sm:flex-row sm:items-center sm:justify-between">
                   <p className="text-sm text-[#70737A]">
@@ -375,7 +335,7 @@ export default function Home() {
                         : liveLessons.length
                           ? `Live results via ${liveSearch.data?.source === "invidious" ? "Invidious" : "a public provider"}`
                           : "Expanded search"
-                      : activeTopic === "All" ? "Every starting point" : `${activeTopic} lessons`}
+                      : "Every starting point"}
                     <span className="text-[#A0A3A7]"> · {shouldUseLiveSearch ? liveLessons.length : visibleCatalog.length} available</span>
                   </p>
                   <label className="relative block w-full sm:w-[285px]">
@@ -419,7 +379,7 @@ export default function Home() {
                     {liveSearch.isFetching ? <Loader2 className="mx-auto h-5 w-5 animate-spin text-[#7C8085]" /> : <Sparkles className="mx-auto h-5 w-5 text-[#7C8085]" />}
                     <h3 className="mt-4 font-display text-3xl">{liveSearch.isFetching ? "Looking beyond the shelf." : shouldUseLiveSearch ? "No lesson surfaced for that yet." : "Nothing matching that phrase yet."}</h3>
                     <p className="mx-auto mt-3 max-w-sm text-sm leading-6 text-[#74777D]">{shouldUseLiveSearch ? liveSearch.data?.message || "The optional public providers did not return a match. Try a more specific topic or phrase." : "Try a broader search, browse every topic, or paste a direct learning link."}</p>
-                    <Button type="button" variant="outline" onClick={() => { setActiveTopic("All"); setSearchTerm(""); }} className="mt-5 border-[#BFC3C7] bg-white text-[#292A28] hover:bg-[#F0F1F2]">View every lesson</Button>
+                    <Button type="button" variant="outline" onClick={() => setSearchTerm("")} className="mt-5 border-[#BFC3C7] bg-white text-[#292A28] hover:bg-[#F0F1F2]">View every lesson</Button>
                   </div>
                 )}
               </div>
@@ -445,7 +405,7 @@ export default function Home() {
             <div className="flex items-center gap-2.5"><span className="flex h-8 w-8 items-center justify-center border border-white/40 font-display text-lg italic">L</span><span className="font-display text-2xl">Lesson Ledger</span></div>
             <p className="mt-4 max-w-sm text-sm leading-6 text-white/62">A focused learning shelf built from useful educational video.</p>
           </div>
-          <div className="text-xs text-white/52 sm:text-right"><p>Catalog + direct URL mode</p><p className="mt-2">Optional live discovery enabled</p></div>
+          <div className="text-xs text-white/52 sm:text-right"><p>Catalog + direct URL mode</p><p className="mt-2">Focused course workspace enabled</p></div>
         </div>
       </footer>
 
@@ -482,13 +442,13 @@ export default function Home() {
           {activeVideo && <>
             <DialogHeader className="sr-only"><DialogTitle>{activeVideo.title}</DialogTitle><DialogDescription>Preview the selected learning video.</DialogDescription></DialogHeader>
             <div className="grid lg:grid-cols-[minmax(0,1.7fr)_minmax(260px,0.8fr)]">
-              <div className="aspect-video bg-black"><iframe className="h-full w-full" src={activeVideo.embedUrl} title={activeVideo.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowFullScreen /></div>
+              <div className="relative aspect-video overflow-hidden bg-black"><iframe className="h-full w-full" src={`${activeVideo.embedUrl}&modestbranding=1`} title={activeVideo.title} sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowFullScreen /><div className="pointer-events-auto absolute inset-x-0 bottom-0 z-10 flex h-10 items-center justify-between bg-[#20211F] px-4 text-[10px] font-medium tracking-[0.08em] text-white/58"><span>Lesson Ledger player</span><span>External navigation disabled</span></div></div>
               <div className="flex flex-col p-6 sm:p-8">
                 <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/50">{activeVideo.topic} · {activeVideo.level}</p>
                 <h2 className="mt-4 font-display text-4xl leading-[0.92] tracking-[-0.04em]">{activeVideo.title}</h2>
                 <p className="mt-3 text-sm text-white/62">{activeVideo.channel} · {activeVideo.duration}</p>
                 <p className="mt-5 text-sm leading-6 text-white/72">{activeVideo.note}</p>
-                <a href={activeVideo.videoUrl} target="_blank" rel="noreferrer" className="mt-auto inline-flex h-10 items-center justify-center gap-2 border border-white/30 text-sm font-semibold text-white transition hover:bg-white hover:text-[#20211F]">Open at source <ExternalLink className="h-4 w-4" /></a>
+                <p className="mt-auto border-t border-white/15 pt-5 text-xs leading-5 text-white/52">Stay with this lesson here, then continue in the focused course workspace.</p>
               </div>
             </div>
           </>}

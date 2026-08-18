@@ -39,3 +39,35 @@ The hero asks what the learner wants to study. The existing local catalog become
 ### Restrictions
 
 Do not copy the reference’s logo, copywriting, routes, or trademarked brand name. Build an original **Lesson Ledger** experience that adopts only the reference’s broad composition, restrained visual language, and focus-first learning behavior.
+
+## Focused Course Workspace
+
+Search is a commitment, not a filter. A submitted learning request now opens a dedicated course workspace without topic controls. The workspace places one embedded lesson beside a numbered outline, keeps progress visible, and does not offer an exit to an external video page. The learner can change subject deliberately through a single course-building input rather than returning to a distracting catalog grid.
+
+### Validation Observation
+
+The dedicated `/learn/<query>` route resolves an ordinary request into an eight-lesson in-site course workspace. The route shows a single embedded lesson, a numbered outline with a visible current lesson, and no topic section. Application navigation returns only to the library; Lesson Ledger itself provides no external-source action in the focused workspace.
+
+Provider-owned embeds may render their own channel and source controls. The focus player therefore blocks pointer access to the provider frame, starts video through a Lesson Ledger action, strips provider controls and fullscreen from the embed configuration, and keeps the course outline as the sole lesson-navigation mechanism.
+
+Browser verification confirms the provider frame is covered by a Lesson Ledger-owned “Play lesson here” control before playback begins. The visible focus surface provides only Lesson Ledger course navigation and reports that external navigation is disabled.
+
+Selecting the second item in the course outline updates the active lesson to “Lesson 02 of 08” within the same `/learn/python%20programming` route and restores the owned playback guard. This maintains one active lesson at a time without navigating away from the course.
+
+The provider iframe is removed from the app’s tab order and accessibility tree, while its full surface remains pointer-blocked beneath the Lesson Ledger overlay. Keyboard navigation should therefore move only through the site header, course builder, owned play action, and outline buttons.
+
+Initial keyboard navigation in the focused course highlights Lesson Ledger-owned header controls. Direct focus inspection is required to confirm that the provider iframe is skipped throughout the course-control sequence.
+
+Focus inspection confirms the media frame has `tabIndex=-1`, `aria-hidden=true`, and `pointer-events:none`; the positive tab-order list contains only Lesson Ledger header, course-builder, owned playback, and outline controls. Provider links do not enter the app’s keyboard focus sequence.
+
+The focused player visibly places a Lesson Ledger-owned full-surface play action and a bottom navigation guard above the provider frame. Final validation targets that guarded bottom region with a pointer click rather than using provider-internal accessibility elements.
+
+A physical click in the guarded player area remained on the same Lesson Ledger course route. The provider may show an in-frame anonymous-playback confirmation, but no external page opened and the only learner navigation remains the course outline and library controls.
+
+The visible provider confirmation-link region was also targeted by a physical pointer click while the full Lesson Ledger overlay was active. The route remained `/learn/python%20programming`, confirming that the overlay intercepted the click rather than allowing external navigation.
+
+The rendered “Learn more” confirmation-link area inside the provider frame was subsequently targeted directly. The application stayed on the same focused-course route, with the Lesson Ledger overlay still active and no external navigation initiated.
+
+After native inertness was added to the provider frame, the focused course continued to load its owned play action and ordered outline successfully. The provider frame remains visually present for media rendering but is intentionally excluded from the learner’s interaction model.
+
+Browser inspection confirmed `inert=true`, `tabIndex=-1`, `aria-hidden=true`, and `pointer-events:none` on the provider frame. An attempted activation of the visible provider-owned “Watch on YouTube” control did not leave the `/learn/python%20programming` route.
