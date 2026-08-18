@@ -16,6 +16,7 @@ import { trpc } from "@/lib/trpc";
 import {
   ArrowLeft,
   ArrowRight,
+  Camera,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -29,7 +30,7 @@ import {
   Sparkles,
   Timer,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 
 type CourseLesson = {
@@ -79,6 +80,9 @@ export default function Course() {
   const [showRecall, setShowRecall] = useState(false);
   const [autoAdvanceTarget, setAutoAdvanceTarget] = useState<number | null>(null);
   const [autoAdvanceRemaining, setAutoAdvanceRemaining] = useState(8);
+  const [captureStatus, setCaptureStatus] = useState<string | null>(null);
+  const playerFrameRef = useRef<HTMLIFrameElement>(null);
+  const playerSurfaceRef = useRef<HTMLDivElement>(null);
   const canSearch = courseQuery.length >= 2;
   const liveSearch = trpc.liveSearch.search.useQuery(
     { query: canSearch ? courseQuery : "learning" },
@@ -107,6 +111,76 @@ export default function Course() {
   const completedCount = courseLessons.filter(lesson => learningRecord.completedLessonIds.includes(lesson.id)).length;
   const courseProgress = courseLessons.length ? Math.round((completedCount / courseLessons.length) * 100) : 0;
   const activeNotes = activeLesson ? learningRecord.notes.filter(note => note.lessonId === activeLesson.id) : [];
+
+  const setPlayerPlayback = (shouldPlay: boolean) => {
+    const command = shouldPlay ? "playVideo" : "pauseVideo";
+    playerFrameRef.current?.contentWindow?.postMessage(
+      JSON.stringify({ event: "command", func: command, args: [] }),
+      "https://www.youtube-nocookie.com",
+    );
+    setIsPlaying(shouldPlay);
+  };
+
+  const togglePlayback = () => setPlayerPlayback(!isPlaying);
+
+  const captureLesson = async () => {
+    if (!navigator.mediaDevices?.getDisplayMedia || !playerSurfaceRef.current) {
+      setCaptureStatus("Screenshots are not available in this browser. Try a current desktop browser.");
+      return;
+    }
+    let stream: MediaStream | undefined;
+    try {
+      setCaptureStatus("Choose the current tab in the browser prompt to capture this lesson.");
+      stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
+      const video = document.createElement("video");
+      video.srcObject = stream;
+      video.muted = true;
+      video.playsInline = true;
+      await video.play();
+      await new Promise(resolve => window.setTimeout(resolve, 150));
+      const playerBounds = playerSurfaceRef.current.getBoundingClientRect();
+      const scaleX = video.videoWidth / window.innerWidth;
+      const scaleY = video.videoHeight / window.innerHeight;
+      const sourceX = Math.max(0, Math.round(playerBounds.left * scaleX));
+      const sourceY = Math.max(0, Math.round(playerBounds.top * scaleY));
+      const sourceWidth = Math.min(video.videoWidth - sourceX, Math.round(playerBounds.width * scaleX));
+      const sourceHeight = Math.min(video.videoHeight - sourceY, Math.round(playerBounds.height * scaleY));
+      if (!sourceWidth || !sourceHeight) throw new Error("The player surface was not available for capture.");
+      const canvas = document.createElement("canvas");
+      canvas.width = sourceWidth;
+      canvas.height = sourceHeight;
+      canvas.getContext("2d")?.drawImage(video, sourceX, sourceY, sourceWidth, sourceHeight, 0, 0, sourceWidth, sourceHeight);
+      const blob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
+      if (!blob) throw new Error("The browser could not create the screenshot.");
+      const download = document.createElement("a");
+      download.href = URL.createObjectURL(blob);
+      download.download = `lesson-ledger-${activeLesson?.title.replace(/[^a-z0-9]+/gi, "-").replace(/(^-|-$)/g, "").toLowerCase() || "lesson"}.png`;
+      download.click();
+      window.setTimeout(() => URL.revokeObjectURL(download.href), 500);
+      setCaptureStatus("Screenshot downloaded. It stays on your device.");
+    } catch (error) {
+      const name = error instanceof DOMException ? error.name : "";
+      setCaptureStatus(name === "NotAllowedError" ? "Screenshot cancelled. Choose the current tab and allow sharing to capture it." : "Screenshot unavailable. Try again and choose the current tab.");
+    } finally {
+      stream?.getTracks().forEach(track => track.stop());
+    }
+  };
+
+  useEffect(() => {
+    const handleCtrlShortcut = (event: KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const editing = target?.tagName === "INPUT" || target?.tagName === "TEXTAREA" || target?.isContentEditable;
+      if (event.key === "Control" && !event.repeat && !editing && activeLesson) {
+        event.preventDefault();
+        togglePlayback();
+      }
+    };
+    const previousHandler = window.onkeydown;
+    window.onkeydown = handleCtrlShortcut;
+    return () => {
+      if (window.onkeydown === handleCtrlShortcut) window.onkeydown = previousHandler;
+    };
+  }, [activeLesson, isPlaying]);
 
   useEffect(() => {
     setNextQuery(courseQuery);
@@ -247,9 +321,13 @@ export default function Course() {
           <section className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.4fr)_minmax(340px,0.6fr)] xl:gap-10">
             <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
               <div className="overflow-hidden border border-[#2A2B29] bg-[#171817] shadow-[0_18px_38px_rgba(27,29,28,0.16)]">
-                <div className="relative aspect-video overflow-hidden bg-black">
-                  <iframe className="pointer-events-none h-full w-full" src={`${activeLesson.embedUrl}&modestbranding=1&controls=0&disablekb=1&fs=0&playsinline=1&enablejsapi=1&autoplay=${isPlaying ? "1" : "0"}`} title="Embedded lesson media" tabIndex={-1} aria-hidden="true" inert sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" />
-                  {!isPlaying ? <button type="button" onClick={() => setIsPlaying(true)} className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 text-white transition hover:bg-black/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-6px] focus-visible:outline-white"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-[#232421] shadow-lg"><Play className="ml-0.5 h-5 w-5 fill-current" /></span><span className="mt-4 text-sm font-semibold">Play lesson here</span><span className="mt-1 text-xs text-white/68">The course player keeps you inside Lesson Ledger.</span></button> : <div className="absolute inset-0 z-20" aria-label="Lesson playing in Lesson Ledger" />}
+                <div ref={playerSurfaceRef} className="relative aspect-video overflow-hidden bg-black">
+                  <iframe ref={playerFrameRef} className="pointer-events-none h-full w-full" src={`${activeLesson.embedUrl}&modestbranding=1&controls=0&disablekb=1&fs=0&playsinline=1&enablejsapi=1&autoplay=${isPlaying ? "1" : "0"}`} title="Embedded lesson media" tabIndex={-1} aria-hidden="true" inert sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" />
+                  {!isPlaying ? <button type="button" onClick={() => setPlayerPlayback(true)} className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 text-white transition hover:bg-black/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-6px] focus-visible:outline-white"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-[#232421] shadow-lg"><Play className="ml-0.5 h-5 w-5 fill-current" /></span><span className="mt-4 text-sm font-semibold">Play lesson here</span><span className="mt-1 text-xs text-white/68">The course player keeps you inside Lesson Ledger.</span></button> : <div className="absolute inset-0 z-20" aria-label="Lesson playing in Lesson Ledger" />}
+                  <div className="absolute right-3 top-3 z-40 flex items-center gap-2">
+                    <button type="button" onClick={togglePlayback} className="inline-flex h-9 items-center gap-1.5 bg-white px-3 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#ECEDEA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={isPlaying ? "Pause lesson" : "Play lesson"}>{isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}{isPlaying ? "Pause" : "Play"}<kbd className="ml-1 border border-[#D5D7D4] px-1 py-0.5 text-[9px] text-[#6E716D]">Ctrl</kbd></button>
+                    <button type="button" onClick={() => void captureLesson()} className="inline-flex h-9 items-center gap-1.5 bg-[#252624] px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-[#50534F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><Camera className="h-3.5 w-3.5" />Screenshot</button>
+                  </div>
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex h-10 items-center justify-between bg-[#171817] px-4 text-[10px] font-medium tracking-[0.08em] text-white/58"><span>Lesson Ledger player</span><span>External navigation disabled</span></div>
                 </div>
                 <div className="flex flex-col gap-4 border-t border-white/10 px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
@@ -258,6 +336,7 @@ export default function Course() {
                 </div>
               </div>
 
+              {captureStatus && <p aria-live="polite" className="mt-4 border border-[#C7CCD1] bg-white px-4 py-3 text-sm leading-6 text-[#575B60]">{captureStatus}</p>}
               {autoAdvanceTarget !== null && <div className="mt-4 flex items-center justify-between gap-4 border border-[#C7CCD1] bg-white px-4 py-3 text-sm"><span className="flex items-center gap-2"><Timer className="h-4 w-4" /> Next lesson begins in {autoAdvanceRemaining}s.</span><button type="button" onClick={() => setAutoAdvanceTarget(null)} className="font-semibold text-[#3F4348] hover:text-black">Pause</button></div>}
 
               <div className="mt-5 flex items-start gap-3 border-l-2 border-[#2B2D2A] pl-4 text-sm leading-6 text-[#666A6D]"><Play className="mt-1 h-3.5 w-3.5 shrink-0 text-[#2B2D2A]" /><p>Mark a lesson complete when you are ready. With auto-advance on, the next lesson opens after a short pause; beginning a reflection pauses the move.</p></div>

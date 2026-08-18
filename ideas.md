@@ -66,6 +66,28 @@ Entering a reflection immediately after completion cancelled the countdown. More
 
 The saved reflection action closed the recall prompt while keeping the learner on the same course route. The final validation confirms that this response is retained with the rest of the student learning record.
 
+## Student Media Controls
+
+The embedded lesson is cross-origin, so a browser page cannot read its pixels directly into a canvas. The screenshot action therefore uses the browser’s explicit tab-capture permission: the student chooses the current tab in the share picker, Lesson Ledger crops the captured tab image to the visible player surface, and downloads a PNG. The action is transparent about the permission step and never sends the capture elsewhere.
+
+The player keeps course-owned Play/Pause and Screenshot buttons visible at the surface. A single **Ctrl** press (outside text fields) toggles the same course-owned playback state. The playback command is sent through the embedded player API while the provider frame remains outside normal pointer and keyboard interaction.
+
+Interactive inspection confirms that **Play · Ctrl** and **Screenshot** are visible at the upper-right of the focused player while the lesson remains inside Lesson Ledger. The next checks exercise their owned state changes and capture-feedback path.
+
+The visible **Play** control successfully changes to **Pause** while preserving the course route. The interactive browser maps a standalone Control press to its platform Meta key, so the Ctrl handler is verified directly with a matching keyboard event rather than treating that browser translation as a student-facing failure.
+
+The Ctrl handler is assigned as the page’s single window keyboard owner. This avoids duplicate toggles during development reloads while preserving the visible Play/Pause button as an always-available alternative.
+
+After the single-owner update, a Ctrl keyboard event changed the owned player control from **Play** to **Pause** while the course route stayed unchanged. Both the on-screen control and the documented shortcut therefore use the same media state.
+
+The public live-search providers were transiently unavailable during the final capture check. The media controls are therefore validated against a bundled catalog lesson, which is the reliable fallback path and uses the same focused player.
+
+With the bundled neural-network lesson open, the real Screenshot action reached the browser permission step and displayed its in-page guidance to choose the current tab. The capture cannot continue until the native browser picker receives that tab selection.
+
+The first live capture attempt was cancelled before a tab was selected. The screenshot action has been started again and is waiting at the same current-tab permission step; the cancellation feedback is clear and keeps the student in the course.
+
+The user-selected current tab completed the live capture successfully. Lesson Ledger displayed “Screenshot downloaded. It stays on your device.” while the student remained in the bundled neural-network course, confirming the end-to-end local download path.
+
 ### Validation Observation
 
 The dedicated `/learn/<query>` route resolves an ordinary request into an eight-lesson in-site course workspace. The route shows a single embedded lesson, a numbered outline with a visible current lesson, and no topic section. Application navigation returns only to the library; Lesson Ledger itself provides no external-source action in the focused workspace.

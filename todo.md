@@ -25,3 +25,6 @@
 - [x] Keep the recall prompt available when auto-advance is enabled, so a student can save a reflection before moving on.
 - [x] Keep the recall prompt available when auto-advance is enabled, so a student can save a reflection before moving on.
 - [x] Re-validate lesson switching, responsive playback, and removal of external video controls before saving the focused-course checkpoint.
+- [x] Define a compliant in-course screenshot workflow for the cross-origin lesson player.
+- [x] Add visible Play/Pause and Screenshot controls to the focused course player.
+- [x] Validate keyboard controls, on-screen controls, capture feedback, and responsive behavior; save the updated checkpoint.
