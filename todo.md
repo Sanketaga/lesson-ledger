@@ -91,5 +91,8 @@
 - [x] Diagnose why broad learning requests return news, music, or unrelated media instead of instructional videos.
 - [x] Define and agree on learning-intent filtering, curricular progression, and course quality criteria.
 - [x] Implement and test topic-aware educational ranking and ordered course assembly for representative searches such as Hindi.
-- [ ] Publish and verify the improved live-curation flow on the deployed site.
-- [ ] Remove non-lesson learning advice and improve beginner-stage classification in the deployed Hindi course sequence.
+- [x] Publish and verify the improved live-curation flow on the deployed site.
+- [x] Remove non-lesson learning advice and improve beginner-stage classification in the deployed Hindi course sequence.
+- [ ] Generalize educational intent expansion, media exclusion, and lesson sequencing beyond language topics.
+- [ ] Test representative technical, academic, practical, and language learning topics for coherent course assembly.
+- [ ] Publish and verify the topic-agnostic learning-course curation flow on the deployed site.
