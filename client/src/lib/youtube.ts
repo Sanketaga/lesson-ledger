@@ -113,6 +113,10 @@ export function formatPlayerElapsedTime(seconds: number) {
   return `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
+export function hasPlayerTimeAdvanced(previousSeconds: number, nextSeconds: number) {
+  return Number.isFinite(nextSeconds) && nextSeconds > Math.max(0, previousSeconds) + 0.2;
+}
+
 export function loadYouTubeIframeApi(): Promise<YouTubeNamespace> {
   if (typeof window === "undefined") return Promise.reject(new Error("The YouTube player is only available in a browser."));
   if (window.YT?.Player) return Promise.resolve(window.YT);

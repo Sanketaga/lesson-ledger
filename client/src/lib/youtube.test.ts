@@ -3,6 +3,7 @@ import {
   createManagedPlayerVars,
   describeYouTubePlayerError,
   formatPlayerElapsedTime,
+  hasPlayerTimeAdvanced,
   getFocusedPlayerGuard,
   getManagedPlaybackViewState,
   getYouTubeEmbedHost,
@@ -50,5 +51,11 @@ describe("managed YouTube player setup", () => {
   it("formats the current managed-player position for focused-course playback feedback", () => {
     expect(formatPlayerElapsedTime(0)).toBe("0:00");
     expect(formatPlayerElapsedTime(65.8)).toBe("1:05");
+  });
+
+  it("recognizes native fallback playback from a meaningful elapsed-time increase", () => {
+    expect(hasPlayerTimeAdvanced(0, 0.1)).toBe(false);
+    expect(hasPlayerTimeAdvanced(0, 0.5)).toBe(true);
+    expect(hasPlayerTimeAdvanced(12.2, 12.8)).toBe(true);
   });
 });

@@ -14,6 +14,7 @@ import {
   getManagedPlaybackViewState,
   getYouTubeEmbedHost,
   getYouTubeVideoId,
+  hasPlayerTimeAdvanced,
   loadYouTubeIframeApi,
   type YouTubePlayer,
 } from "@/lib/youtube";
@@ -228,13 +229,22 @@ export default function Course() {
   }, [playerSeconds]);
 
   useEffect(() => {
-    if (!isPlaying) return;
+    const monitorNativeStart = allowNativeStart && requestedPlaybackRef.current;
+    if (!isPlaying && !monitorNativeStart) return;
     const timer = window.setInterval(() => {
       const seconds = playerRef.current?.getCurrentTime();
-      if (typeof seconds === "number" && Number.isFinite(seconds)) setPlayerSeconds(seconds);
+      if (typeof seconds !== "number" || !Number.isFinite(seconds)) return;
+      const elapsedTimeAdvanced = hasPlayerTimeAdvanced(playerSecondsRef.current, seconds);
+      setPlayerSeconds(seconds);
+      if (monitorNativeStart && elapsedTimeAdvanced) {
+        playbackConfirmedRef.current = true;
+        setIsPlaying(true);
+        setAllowNativeStart(false);
+        setPlayerStatus("Playing lesson.");
+      }
     }, 500);
     return () => window.clearInterval(timer);
-  }, [isPlaying]);
+  }, [allowNativeStart, isPlaying]);
 
   useEffect(() => {
     const host = playerHostRef.current;
