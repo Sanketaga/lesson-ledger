@@ -88,3 +88,7 @@
 - [x] Exercise deployed Pause, 5-second seek, and Fullscreen controls without leaving the focused course route.
 - [ ] Confirm the deployed player’s current playback time advances after it reports `Playing lesson.`.
 - [ ] Capture direct observable evidence that the deployed player time increases after entering `Playing lesson.`.
+- [x] Diagnose why broad learning requests return news, music, or unrelated media instead of instructional videos.
+- [x] Define and agree on learning-intent filtering, curricular progression, and course quality criteria.
+- [x] Implement and test topic-aware educational ranking and ordered course assembly for representative searches such as Hindi.
+- [ ] Publish and verify the improved live-curation flow on the deployed site.

@@ -2,6 +2,47 @@ import { normalizeLearningQuery } from "../shared/learningQuery";
 
 type SearchProvider = "invidious" | "piped" | "youtube";
 
+type LearningIntent = {
+  topic: string;
+  searchQuery: string;
+  enforceEducationalFocus: boolean;
+};
+
+const LANGUAGE_TOPICS: Record<string, string> = {
+  hindi: "Hindi",
+  spanish: "Spanish",
+  french: "French",
+  german: "German",
+  japanese: "Japanese",
+  korean: "Korean",
+  arabic: "Arabic",
+  english: "English",
+};
+
+const EXPLICIT_MEDIA_TERMS = /\b(?:news|khabar|headlines|music|song|songs|gana|movie|movies|film|films|bollywood|trailer)\b/i;
+const NON_INSTRUCTIONAL_TERMS = /\b(?:news|khabar|headlines|breaking|live news|song|songs|gana|music video|romantic|love songs|bollywood|movie|full movie|film|trailer|episode|serial|remix|playlist|reaction)\b/i;
+const INSTRUCTIONAL_TERMS = /\b(?:learn|learning|lesson|lessons|tutorial|course|beginner|beginners|basics|basic|introduction|intro|from scratch|alphabet|script|letters|pronunciation|vocabulary|words|phrases|grammar|verbs|sentence|conversation|speaking|writing|practice|explained|guide)\b/i;
+const CURRICULUM_STAGES = [
+  /\b(?:alphabet|script|letters|pronunciation|sounds)\b/i,
+  /\b(?:introduction|intro|beginner|basics|basic|first lesson|from scratch)\b/i,
+  /\b(?:vocabulary|words|phrases)\b/i,
+  /\b(?:grammar|verbs|sentence|reading|writing)\b/i,
+  /\b(?:conversation|speaking|practice|fluency)\b/i,
+];
+
+/** Converts a broad topic into a provider query that expresses the learner's educational goal. */
+export function buildLearningIntent(query: string): LearningIntent {
+  const topic = normalizeLearningQuery(query) || query.trim().toLowerCase();
+  const isExplicitMediaRequest = EXPLICIT_MEDIA_TERMS.test(query);
+  const language = LANGUAGE_TOPICS[topic];
+  if (isExplicitMediaRequest) return { topic, searchQuery: topic, enforceEducationalFocus: false };
+  return {
+    topic,
+    searchQuery: language ? `learn ${language} language for beginners` : `learn ${topic} for beginners`,
+    enforceEducationalFocus: true,
+  };
+}
+
 export type LiveSearchResult = {
   videoId: string;
   title: string;
@@ -29,6 +70,37 @@ export type LiveSearchResponse = {
     }[];
   };
 };
+
+function curriculumStage(result: LiveSearchResult) {
+  const text = `${result.title} ${result.note}`;
+  const stage = CURRICULUM_STAGES.findIndex(pattern => pattern.test(text));
+  return stage < 0 ? CURRICULUM_STAGES.length : stage;
+}
+
+function educationalScore(result: LiveSearchResult, intent: LearningIntent) {
+  const text = `${result.title} ${result.note} ${result.channel}`.toLowerCase();
+  const topicTokens = intent.topic.split(/\s+/).filter(token => token.length > 1);
+  const topicMatches = topicTokens.filter(token => text.includes(token)).length;
+  const instructionMatches = (text.match(/\b(?:learn|lesson|tutorial|course|beginner|basics|alphabet|pronunciation|vocabulary|grammar|conversation|speaking|writing|practice|explained|guide)\b/g) ?? []).length;
+  return topicMatches * 8 + instructionMatches * 3 - curriculumStage(result);
+}
+
+/** Filters generic-provider results to teaching material and orders remaining lessons from foundations to practice. */
+export function curateLearningResults(results: LiveSearchResult[], intent: LearningIntent) {
+  const uniqueResults = results.filter((result, index) => results.findIndex(candidate => candidate.videoId === result.videoId) === index);
+  const focusedResults = intent.enforceEducationalFocus
+    ? uniqueResults.filter(result => {
+      const text = `${result.title} ${result.note} ${result.channel}`;
+      return INSTRUCTIONAL_TERMS.test(text) && !NON_INSTRUCTIONAL_TERMS.test(text);
+    })
+    : uniqueResults;
+
+  return focusedResults
+    .map((result, providerIndex) => ({ result, providerIndex, stage: curriculumStage(result), score: educationalScore(result, intent) }))
+    .sort((left, right) => left.stage - right.stage || right.score - left.score || left.providerIndex - right.providerIndex)
+    .map(item => item.result)
+    .slice(0, 8);
+}
 
 const INVIDIOUS_INSTANCES = [
   "https://inv.nadeko.net",
@@ -301,11 +373,11 @@ async function searchYouTubeDataApi(encodedQuery: string): Promise<ProviderAttem
 }
 
 export async function searchEducationalVideos(query: string): Promise<LiveSearchResponse> {
-  const normalizedQuery = normalizeLearningQuery(query) || query.trim();
-  if (!normalizedQuery) return { status: "empty", source: null, results: [] };
-  const encodedQuery = encodeURIComponent(normalizedQuery);
+  const intent = buildLearningIntent(query);
+  if (!intent.topic) return { status: "empty", source: null, results: [] };
+  const encodedQuery = encodeURIComponent(intent.searchQuery);
 
-  console.info("liveSearch: query=", normalizedQuery);
+  console.info("liveSearch: query=", intent.searchQuery);
 
   const attempts: Promise<ProviderAttempt & { endpoint?: string; tookMs?: number; error?: string }>[] = [];
 
@@ -332,10 +404,11 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
         const result = await attemptPromise;
         completed += 1;
         providerResponded = providerResponded || result.responded;
-        debugAttempts.push({ provider: result.provider, endpoint: (result as any).endpoint, responded: result.responded, resultCount: result.results.length, error: (result as any).error, tookMs: (result as any).tookMs });
-        if (!settled && result.results.length > 0) {
+        const curatedResults = curateLearningResults(result.results, intent);
+        debugAttempts.push({ provider: result.provider, endpoint: (result as any).endpoint, responded: result.responded, resultCount: curatedResults.length, error: (result as any).error, tookMs: (result as any).tookMs });
+        if (!settled && curatedResults.length > 0) {
           settled = true;
-          resolve({ status: "ok", source: result.provider, results: result.results.slice(0, 8), debug: { attempts: debugAttempts } });
+          resolve({ status: "ok", source: result.provider, results: curatedResults, debug: { attempts: debugAttempts } });
           return;
         }
       } catch (err: any) {
@@ -346,7 +419,7 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
 
       if (!settled && completed === attempts.length) {
         const response: LiveSearchResponse = providerResponded
-          ? { status: "empty", source: null, results: [], message: "No public videos matched that topic. Try another phrase.", debug: { attempts: debugAttempts } }
+          ? { status: "empty", source: null, results: [], message: "No teaching-quality videos matched that topic. Try a more specific learning goal.", debug: { attempts: debugAttempts } }
           : { status: "unavailable", source: null, results: [], message: "Live video search is temporarily unavailable. Retry in a moment.", debug: { attempts: debugAttempts } };
         resolve(response);
       }
