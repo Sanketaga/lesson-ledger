@@ -344,6 +344,22 @@ async function searchYouTube(encodedQuery: string): Promise<ProviderAttempt & { 
   }
 }
 
+/** Builds topic-agnostic discovery prompts that seek the main stages of a learnable path. */
+export function buildCurriculumSearchQueries(intent: LearningIntent) {
+  const language = LANGUAGE_TOPICS[intent.topic];
+  const subject = language ? `${language} language` : intent.topic;
+  return [
+    `learn ${subject} introduction fundamentals`,
+    `learn ${subject} basics for beginners`,
+    `${subject} core concepts tutorial`,
+    `${subject} practice project examples`,
+  ];
+}
+
+async function searchYouTubeCurriculum(intent: LearningIntent) {
+  return Promise.all(buildCurriculumSearchQueries(intent).map(query => searchYouTube(encodeURIComponent(query))));
+}
+
 function parseISODurationToSeconds(duration = "") {
   const match = duration.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
   if (!match) return 0;
@@ -411,6 +427,20 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
 
   console.info("liveSearch: query=", intent.searchQuery);
 
+  const debugAttempts: { provider: SearchProvider; endpoint?: string; responded: boolean; resultCount: number; error?: string; tookMs?: number }[] = [];
+  const curriculumAttempts = await searchYouTubeCurriculum(intent);
+  const curriculumResults = curriculumAttempts.reduce<LiveSearchResult[]>((all, attempt) => all.concat(attempt.results), []);
+  const curatedCurriculum = curateLearningResults(curriculumResults, intent);
+
+  curriculumAttempts.forEach(attempt => {
+    const curatedCount = curateLearningResults(attempt.results, intent).length;
+    debugAttempts.push({ provider: attempt.provider, endpoint: attempt.endpoint, responded: attempt.responded, resultCount: curatedCount, error: attempt.error, tookMs: attempt.tookMs });
+  });
+
+  if (curatedCurriculum.length >= 3) {
+    return { status: "ok", source: "youtube", results: curatedCurriculum, debug: { attempts: debugAttempts } };
+  }
+
   const attempts: Promise<ProviderAttempt & { endpoint?: string; tookMs?: number; error?: string }>[] = [];
 
   // Prefer Data API when present
@@ -418,14 +448,9 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
     attempts.push(searchYouTubeDataApi(encodedQuery));
   }
 
-  // Try YouTube HTML scraping early — it's often the fastest to return usable results
-  attempts.push(searchYouTube(encodedQuery));
-
-  // Then try public relays
+  // Fall back to the broad provider query when stage-specific direct discovery did not form a viable path.
   attempts.push(...PIPED_INSTANCES.map(instance => searchProvider("piped", instance, encodedQuery)));
   attempts.push(...INVIDIOUS_INSTANCES.map(instance => searchProvider("invidious", instance, encodedQuery)));
-
-  const debugAttempts: { provider: SearchProvider; endpoint?: string; responded: boolean; resultCount: number; error?: string; tookMs?: number }[] = [];
 
   return await new Promise<LiveSearchResponse>(resolve => {
     let completed = 0;
@@ -436,9 +461,9 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
         const result = await attemptPromise;
         completed += 1;
         providerResponded = providerResponded || result.responded;
-        const curatedResults = curateLearningResults(result.results, intent);
+        const curatedResults = curateLearningResults([...curatedCurriculum, ...result.results], intent);
         debugAttempts.push({ provider: result.provider, endpoint: (result as any).endpoint, responded: result.responded, resultCount: curatedResults.length, error: (result as any).error, tookMs: (result as any).tookMs });
-        if (!settled && curatedResults.length > 0) {
+        if (!settled && result.results.length > 0 && curatedResults.length > 0) {
           settled = true;
           resolve({ status: "ok", source: result.provider, results: curatedResults, debug: { attempts: debugAttempts } });
           return;
@@ -450,7 +475,9 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
       }
 
       if (!settled && completed === attempts.length) {
-        const response: LiveSearchResponse = providerResponded
+        const response: LiveSearchResponse = curatedCurriculum.length > 0
+          ? { status: "ok", source: "youtube", results: curatedCurriculum, debug: { attempts: debugAttempts } }
+          : providerResponded
           ? { status: "empty", source: null, results: [], message: "No teaching-quality videos matched that topic. Try a more specific learning goal.", debug: { attempts: debugAttempts } }
           : { status: "unavailable", source: null, results: [], message: "Live video search is temporarily unavailable. Retry in a moment.", debug: { attempts: debugAttempts } };
         resolve(response);

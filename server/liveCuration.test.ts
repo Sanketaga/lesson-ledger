@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildLearningIntent, curateLearningResults, searchEducationalVideos, type LiveSearchResult } from "./liveSearch";
+import { buildCurriculumSearchQueries, buildLearningIntent, curateLearningResults, searchEducationalVideos, type LiveSearchResult } from "./liveSearch";
 
 const result = (videoId: string, title: string): LiveSearchResult => ({
   videoId,
@@ -26,6 +26,15 @@ describe("learning-intent course curation", () => {
       searchQuery: "hindi news",
       enforceEducationalFocus: false,
     });
+  });
+
+  it("plans stage-specific discovery queries for any topic instead of relying on one broad search", () => {
+    expect(buildCurriculumSearchQueries(buildLearningIntent("Python"))).toEqual([
+      "learn python introduction fundamentals",
+      "learn python basics for beginners",
+      "python core concepts tutorial",
+      "python practice project examples",
+    ]);
   });
 
   it("rejects entertainment and news, then sequences teaching material from foundations to practice", () => {
