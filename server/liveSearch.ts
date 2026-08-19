@@ -21,7 +21,8 @@ const LANGUAGE_TOPICS: Record<string, string> = {
 
 const EXPLICIT_MEDIA_TERMS = /\b(?:news|khabar|headlines|music|song|songs|gana|movie|movies|film|films|bollywood|trailer)\b/i;
 const NON_INSTRUCTIONAL_TERMS = /\b(?:news|khabar|headlines|breaking|live news|song|songs|gana|music video|romantic|love songs|bollywood|movie|full movie|film|trailer|episode|serial|remix|playlist|reaction)\b/i;
-const NON_COURSE_ADVICE_TERMS = /\b(?:how to learn .* faster|tips(?: for learning)?|review|my journey|my experience|why i (?:learned|moved))\b/i;
+const NON_COURSE_ADVICE_TERMS = /\b(?:how (?:to|i|we|you) (?:would |should |can )?learn .*?(?:faster|fast)|tips(?: for learning)?|review|my journey|my experience|why i (?:learned|moved))\b/i;
+const COMPLETE_COURSE_TERMS = /\b(?:full course|all (?:the )?basics|\b(?:learn|learned)\b.*?\bin\s+\d+\s+(?:minutes?|hours?)|\d+\s+beginner lessons)\b/i;
 const INSTRUCTIONAL_TERMS = /\b(?:learn|learning|lesson|lessons|tutorial|course|beginner|beginners|basics|basic|introduction|intro|overview|what is|from scratch|fundamentals|concepts|how to|walkthrough|guide|recipe|project|exercise|setup|installation|alphabet|script|letters|pronunciation|vocabulary|words|phrases|grammar|verbs|sentence|conversation|speaking|writing|practice|explained)\b/i;
 const FOUNDATION_STAGE = /\b(?:what is|overview|introduction|intro|fundamentals|foundations?|alphabet|script|letters|pronunciation|sounds)\b/i;
 const BEGINNER_STAGE = /\b(?:beginner(?:s)?|basics|basic|first lesson|lesson\s*(?:1|one)|from scratch|getting started|setup|installation)\b/i;
@@ -91,7 +92,7 @@ const CURRICULUM_STAGE_LABELS = [
 ];
 
 function canonicalTeachingFingerprint(title: string) {
-  const ignoredWords = new Set(["learn", "language", "for", "the", "all", "basics", "basic", "you", "need", "every", "in", "minute", "minutes", "hour", "hours"]);
+  const ignoredWords = new Set(["learn", "language", "for", "the", "all", "basics", "basic", "beginner", "beginners", "course", "full", "tutorial", "you", "need", "every", "in", "minute", "minutes", "hour", "hours"]);
   return Array.from(new Set(title.toLowerCase().replace(/\d+/g, " ").replace(/[^a-z\s]/g, " ").split(/\s+/).filter(word => word.length > 1 && !ignoredWords.has(word)))).sort().join(" ");
 }
 
@@ -117,12 +118,16 @@ export function curateLearningResults(results: LiveSearchResult[], intent: Learn
     .map((result, providerIndex) => ({ result, providerIndex, stage: curriculumStage(result), score: educationalScore(result, intent) }))
     .sort((left, right) => left.stage - right.stage || right.score - left.score || left.providerIndex - right.providerIndex);
   const seenTeachingFingerprints = new Set<string>();
+  let completeCourseSeen = false;
 
   return rankedResults
     .filter(item => {
       const fingerprint = canonicalTeachingFingerprint(item.result.title);
       if (!fingerprint || seenTeachingFingerprints.has(fingerprint)) return false;
+      const isCompleteCourse = COMPLETE_COURSE_TERMS.test(item.result.title);
+      if (isCompleteCourse && completeCourseSeen) return false;
       seenTeachingFingerprints.add(fingerprint);
+      if (isCompleteCourse) completeCourseSeen = true;
       return true;
     })
     .map(item => ({ ...item.result, learningStage: CURRICULUM_STAGE_LABELS[item.stage] ?? "Further practice" }))
