@@ -44,3 +44,5 @@
 - [x] Remove all Snapshot capture controls, status, preview, helper code, and capture-specific tests from the focused course.
 - [x] Add a course-owned fullscreen / exit-fullscreen control for the focused video player.
 - [x] Validate fullscreen entry and exit, keyboard/player controls, mobile layout, tests, and production build.
+- [x] Re-run final production verification for the release checkpoint.
+- [x] Provide deployment guidance, including the built-in publishing path and Vercel compatibility considerations.
