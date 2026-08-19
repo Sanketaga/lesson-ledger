@@ -59,3 +59,7 @@
 - [x] Add automated coverage for natural-language search requests and validate the focused-course result.
 - [x] Ensure the shared natural-language query test is included in the Vitest suite.
 - [x] Push the verified search repair to the private GitHub repository for the connected Vercel workflow.
+- [x] Confirm the correct Vercel Analytics package and React/Vite import for this application.
+- [x] Install and mount Vercel Analytics at the application root.
+- [x] Add a lightweight regression check for the Vercel React Analytics entrypoint.
+- [ ] Validate the analytics-enabled production build and push the update to GitHub for Vercel.
