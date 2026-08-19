@@ -6,12 +6,13 @@
   "scripts": {
     "dev": "NODE_ENV=development tsx watch server/_core/index.ts",
     "build": "vite build && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "vercel-build": "vite build",
-    "vercel:function-check": "rm -rf .vercel-check && esbuild \"api/trpc/[...path].ts\" api/oauth/callback.ts \"api/manus-storage/[...path].ts\" --platform=node --packages=external --bundle --format=esm --outdir=.vercel-check",
+    "vercel:bundle-api": "rm -rf api/_runtime && mkdir -p api/_runtime && esbuild server/app.ts --platform=node --bundle --format=esm --packages=external --outfile=api/_runtime/app.mjs",
+    "vercel-build": "pnpm run vercel:bundle-api && vite build",
+    "vercel:function-check": "pnpm run vercel:bundle-api && rm -rf .vercel-check && esbuild \"api/trpc/[...path].ts\" api/oauth/callback.ts \"api/manus-storage/[...path].ts\" --platform=node --packages=external --bundle --format=esm --outdir=.vercel-check",
     "start": "NODE_ENV=production node dist/index.js",
     "check": "tsc --noEmit",
     "format": "prettier --write .",
-    "test": "vitest run",
+    "test": "pnpm run vercel:bundle-api && vitest run",
     "db:push": "drizzle-kit generate && drizzle-kit migrate"
   },
   "dependencies": {

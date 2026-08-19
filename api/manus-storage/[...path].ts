@@ -1,4 +1,4 @@
 /** Explicit Vercel Function for the optional storage proxy route. */
-import app from "../../server/app";
+import app from "../_runtime/app.mjs";
 
 export default app;

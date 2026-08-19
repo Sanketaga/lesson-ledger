@@ -78,3 +78,4 @@
 - [x] Implement a deployment-safe live discovery fallback and add coverage for the failure mode.
 - [ ] Validate the repaired LiveSearch on the deployed site and push the confirmed fix to GitHub main.
 - [x] Remove the invalid Vercel function runtime override that is blocking deployment of the repaired API routes.
+- [ ] Bundle the shared Express application inside the Vercel API function directory to prevent runtime module-resolution failures.
