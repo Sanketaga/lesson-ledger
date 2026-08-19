@@ -51,6 +51,7 @@ export type LiveSearchResult = {
   duration: string;
   note: string;
   provider: SearchProvider;
+  learningStage?: string;
 };
 
 export type LiveSearchResponse = {
@@ -77,6 +78,20 @@ function curriculumStage(result: LiveSearchResult) {
   return stage < 0 ? CURRICULUM_STAGES.length : stage;
 }
 
+const CURRICULUM_STAGE_LABELS = [
+  "Foundations",
+  "Beginner basics",
+  "Vocabulary",
+  "Grammar & reading",
+  "Conversation practice",
+  "Further practice",
+];
+
+function canonicalTeachingFingerprint(title: string) {
+  const ignoredWords = new Set(["learn", "language", "for", "the", "all", "basics", "basic", "you", "need", "every", "in", "minute", "minutes", "hour", "hours"]);
+  return Array.from(new Set(title.toLowerCase().replace(/\d+/g, " ").replace(/[^a-z\s]/g, " ").split(/\s+/).filter(word => word.length > 1 && !ignoredWords.has(word)))).sort().join(" ");
+}
+
 function educationalScore(result: LiveSearchResult, intent: LearningIntent) {
   const text = `${result.title} ${result.note} ${result.channel}`.toLowerCase();
   const topicTokens = intent.topic.split(/\s+/).filter(token => token.length > 1);
@@ -95,10 +110,19 @@ export function curateLearningResults(results: LiveSearchResult[], intent: Learn
     })
     : uniqueResults;
 
-  return focusedResults
+  const rankedResults = focusedResults
     .map((result, providerIndex) => ({ result, providerIndex, stage: curriculumStage(result), score: educationalScore(result, intent) }))
-    .sort((left, right) => left.stage - right.stage || right.score - left.score || left.providerIndex - right.providerIndex)
-    .map(item => item.result)
+    .sort((left, right) => left.stage - right.stage || right.score - left.score || left.providerIndex - right.providerIndex);
+  const seenTeachingFingerprints = new Set<string>();
+
+  return rankedResults
+    .filter(item => {
+      const fingerprint = canonicalTeachingFingerprint(item.result.title);
+      if (!fingerprint || seenTeachingFingerprints.has(fingerprint)) return false;
+      seenTeachingFingerprints.add(fingerprint);
+      return true;
+    })
+    .map(item => ({ ...item.result, learningStage: CURRICULUM_STAGE_LABELS[item.stage] ?? "Further practice" }))
     .slice(0, 8);
 }
 

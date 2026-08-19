@@ -36,9 +36,13 @@ describe("learning-intent course curation", () => {
       result("grammar", "Hindi grammar: build simple sentences"),
       result("alphabet", "Learn the Hindi alphabet and pronunciation"),
       result("vocabulary", "Hindi vocabulary: essential everyday words"),
+      result("overview-1", "Learn Hindi in 30 minutes - all the basics you need"),
+      result("overview-2", "Learn Hindi in 3 hours - all Hindi basics you need"),
     ], buildLearningIntent("Hindi"));
 
-    expect(curated.map(item => item.videoId)).toEqual(["alphabet", "vocabulary", "grammar", "conversation"]);
+    expect(curated.map(item => item.videoId)).toEqual(["alphabet", "overview-1", "vocabulary", "grammar", "conversation"]);
+    expect(curated.find(item => item.videoId === "alphabet")).toMatchObject({ learningStage: "Foundations" });
+    expect(curated).not.toEqual(expect.arrayContaining([expect.objectContaining({ videoId: "overview-2" })]));
   });
 
   it("searches Hindi as a language-learning request and never uses provider songs or headlines to fill the course", async () => {

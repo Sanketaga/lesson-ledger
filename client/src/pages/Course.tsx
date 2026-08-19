@@ -59,6 +59,7 @@ type CourseLesson = {
   thumbnail: string;
   embedUrl: string;
   source: "catalog" | "live";
+  learningStage?: string;
 };
 
 function decodeCourseQuery(value: string) {
@@ -127,6 +128,7 @@ export default function Course() {
         thumbnail: result.thumbnail || `https://i.ytimg.com/vi/${result.videoId}/hqdefault.jpg`,
         embedUrl: `https://www.youtube-nocookie.com/embed/${result.videoId}?rel=0`,
         source: "live" as const,
+        learningStage: result.learningStage,
       }))
       .filter(lesson => !localVideoIds.has(lesson.embedUrl));
     return [...localLessons, ...liveLessons];
@@ -151,6 +153,7 @@ export default function Course() {
           thumbnail: l.thumbnail,
           embedUrl: l.embedUrl,
           source: l.source,
+          learningStage: l.learningStage,
         })),
       };
       const exists = localStorage.getItem(key);
@@ -499,7 +502,7 @@ export default function Course() {
             <aside className="space-y-5">
               <div className="border border-[#DCE0E2] bg-[#FBFBFA] xl:max-h-[50vh] xl:overflow-y-auto">
                 <div className="border-b border-[#E0E3E5] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Curated playlist</p><p className="mt-1 text-sm text-[#6F7376]">An ordered set of lessons for this topic.</p></div></div></div>
-                <ol className="divide-y divide-[#E1E4E6]">{courseLessons.map((lesson, index) => { const isComplete = learningRecord.completedLessonIds.includes(lesson.id); return <li key={lesson.id} className="px-5 py-4 sm:px-6"><div className="flex items-center justify-between"><div><button type="button" onClick={() => selectLesson(index, true)} className="text-left"><div className="font-medium">{lesson.title}</div><div className="text-xs text-[#6F7376]">{lesson.channel} · {lesson.duration}</div></button></div><div className="flex items-center gap-2"><button type="button" onClick={() => { setLearningRecord(r => completeLesson(r, lesson.id)); toast.success("Marked complete"); }} className="inline-flex items-center gap-2 rounded bg-white px-2 py-1 text-xs">{isComplete ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Check className="h-4 w-4" />}</button></div></div></li>})}</ol>
+                <ol className="divide-y divide-[#E1E4E6]">{courseLessons.map((lesson, index) => { const isComplete = learningRecord.completedLessonIds.includes(lesson.id); return <li key={lesson.id} className="px-5 py-4 sm:px-6"><div className="flex items-center justify-between"><div><button type="button" onClick={() => selectLesson(index, true)} className="text-left"><div className="font-medium">{lesson.title}</div><div className="text-xs text-[#6F7376]">Step {index + 1} · {lesson.learningStage ?? "Focused lesson"} · {lesson.channel} · {lesson.duration}</div></button></div><div className="flex items-center gap-2"><button type="button" onClick={() => { setLearningRecord(r => completeLesson(r, lesson.id)); toast.success("Marked complete"); }} className="inline-flex items-center gap-2 rounded bg-white px-2 py-1 text-xs">{isComplete ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Check className="h-4 w-4" />}</button></div></div></li>})}</ol>
               </div>
 
               <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Course progress</p><p className="mt-1 text-sm text-[#6F7376]">{courseProgress}% complete</p></div><div className="text-sm text-[#6F7376]"><button type="button" onClick={() => { localStorage.removeItem(`lesson-ledger:playlist:${encodeURIComponent(courseTopic)}`); toast.success("Removed curated playlist"); }} className="text-xs underline">Remove playlist</button></div></div></div>
