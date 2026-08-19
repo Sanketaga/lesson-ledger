@@ -28,7 +28,10 @@ const INVIDIOUS_INSTANCES = [
 
 const PIPED_INSTANCES = [
   "https://api.piped.private.coffee",
+  "https://pipedapi.orangenet.cc",
+  "https://pipedapi.leptons.xyz",
   "https://pipedapi.kavin.rocks",
+  "https://pipedapi.reallyaweso.me",
 ];
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -95,53 +98,75 @@ export function mapPipedResults(payload: unknown): LiveSearchResult[] {
     .slice(0, 8);
 }
 
-async function fetchJson(url: string) {
+type ProviderAttempt = {
+  provider: SearchProvider;
+  responded: boolean;
+  results: LiveSearchResult[];
+};
+
+async function fetchJson(url: string): Promise<{ responded: boolean; payload: unknown }> {
   const abortController = new AbortController();
-  const timeout = setTimeout(() => abortController.abort(), 6_000);
+  const timeout = setTimeout(() => abortController.abort(), 4_500);
   try {
     const response = await fetch(url, {
       signal: abortController.signal,
       headers: { Accept: "application/json", "User-Agent": "LessonLedger/1.0 (+educational-video-catalog)" },
     });
-    if (!response.ok) return undefined;
-    return await response.json();
+    if (!response.ok) return { responded: false, payload: undefined };
+    return { responded: true, payload: await response.json() };
   } catch {
-    return undefined;
+    return { responded: false, payload: undefined };
   } finally {
     clearTimeout(timeout);
   }
+}
+
+async function searchProvider(
+  provider: SearchProvider,
+  instance: string,
+  encodedQuery: string,
+): Promise<ProviderAttempt> {
+  const endpoint = provider === "invidious"
+    ? `${instance}/api/v1/search?q=${encodedQuery}&type=video&region=US`
+    : `${instance}/search?q=${encodedQuery}&region=US&filter=videos`;
+  const response = await fetchJson(endpoint);
+  return {
+    provider,
+    responded: response.responded,
+    results: provider === "invidious" ? mapInvidiousResults(response.payload) : mapPipedResults(response.payload),
+  };
 }
 
 export async function searchEducationalVideos(query: string): Promise<LiveSearchResponse> {
   const normalizedQuery = normalizeLearningQuery(query) || query.trim();
   if (!normalizedQuery) return { status: "empty", source: null, results: [] };
   const encodedQuery = encodeURIComponent(normalizedQuery);
-  const [invidiousPayloads, pipedPayloads] = await Promise.all([
-    Promise.all(INVIDIOUS_INSTANCES.map(instance => fetchJson(`${instance}/api/v1/search?q=${encodedQuery}&type=video&region=US`))),
-    Promise.all(PIPED_INSTANCES.map(instance => fetchJson(`${instance}/search?q=${encodedQuery}&region=US&filter=videos`))),
-  ]);
+  const attempts = [
+    ...PIPED_INSTANCES.map(instance => searchProvider("piped", instance, encodedQuery)),
+    ...INVIDIOUS_INSTANCES.map(instance => searchProvider("invidious", instance, encodedQuery)),
+  ];
 
-  const invidiousResults = invidiousPayloads.flatMap(mapInvidiousResults);
-  if (invidiousResults.length > 0) return { status: "ok", source: "invidious", results: invidiousResults.slice(0, 8) };
-
-  const pipedResults = pipedPayloads.flatMap(mapPipedResults);
-  if (pipedResults.length > 0) return { status: "ok", source: "piped", results: pipedResults.slice(0, 8) };
-
-  const providerResponded = [...invidiousPayloads, ...pipedPayloads].some(payload => payload !== undefined);
-
-  if (providerResponded) {
-    return {
-      status: "empty",
-      source: null,
-      results: [],
-      message: "No public videos matched that search. Try a more specific topic or phrase.",
-    };
-  }
-
-  return {
-    status: "unavailable",
-    source: null,
-    results: [],
-    message: "The expanded search providers are unavailable right now. Your local learning shelf is still ready.",
-  };
+  // Public relays change availability frequently. Return immediately when any
+  // live YouTube-compatible provider produces videos instead of waiting for
+  // slower or blocked relays to time out.
+  return await new Promise<LiveSearchResponse>(resolve => {
+    let completed = 0;
+    let providerResponded = false;
+    let settled = false;
+    attempts.forEach(async attempt => {
+      const result = await attempt;
+      completed += 1;
+      providerResponded = providerResponded || result.responded;
+      if (!settled && result.results.length > 0) {
+        settled = true;
+        resolve({ status: "ok", source: result.provider, results: result.results.slice(0, 8) });
+        return;
+      }
+      if (!settled && completed === attempts.length) {
+        resolve(providerResponded
+          ? { status: "empty", source: null, results: [], message: "No public YouTube videos matched that topic. Try another phrase." }
+          : { status: "unavailable", source: null, results: [], message: "Live YouTube search is temporarily unavailable. Retry in a moment." });
+      }
+    });
+  });
 }

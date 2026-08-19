@@ -110,6 +110,12 @@ The Vercel release structure separates static browser assets from dynamic API ro
 
 Students should be able to type the way they speak. The course command normalizes common instructional framing—such as “I want to learn Python” or “teach me intro to Python for beginners”—to the concise search topic `python`. The same normalized topic drives the local catalog, live-provider request, course title, and browser-stored learning record. A vetted Python course now guarantees a useful local starting point even when third-party live-search providers are unavailable.
 
+## Universal Live Course Discovery
+
+An arbitrary learner request is a live discovery request, not a catalog-only lookup. Lesson Ledger sends each normalized topic to several public YouTube-compatible Piped and Invidious relays at once and returns as soon as the first healthy source supplies usable videos. This prevents a blocked public relay from delaying or emptying a course even when another provider has results. The focused course shows a direct retry action only when every live provider is temporarily unavailable.
+
+Implementation research sources: [Piped API documentation](https://docs.piped.video/docs/api-documentation/) documents unauthenticated instance APIs and recommends dynamic instance awareness; its [public-instance list](https://raw.githubusercontent.com/TeamPiped/documentation/refs/heads/main/content/docs/public-instances/index.md) identified the tested Piped relays. The [Invidious API documentation](https://docs.invidious.io/api/) confirms the compatible `/api/v1/search` format used as a parallel fallback.
+
 Browser validation confirms that clicking **Snapshot** immediately generated a local preview, downloaded the image, and displayed the success message without opening any tab-sharing permission picker. The preview and repeat-download action remain inside the focused course.
 
 The repaired capture completed successfully: the player reported “Screenshot ready and downloaded,” displayed an in-page preview, and exposed a **Download again** action. The visible rewind control also returned “Moved back 5 seconds,” confirming both five-second directions now respond within the focused course.

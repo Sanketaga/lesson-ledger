@@ -63,3 +63,7 @@
 - [x] Install and mount Vercel Analytics at the application root.
 - [x] Add a lightweight regression check for the Vercel React Analytics entrypoint.
 - [x] Validate the analytics-enabled production build and push the update to GitHub for Vercel.
+- [x] Reproduce arbitrary-keyword live search failures, including the deployed “llm” course request.
+- [x] Make live YouTube-compatible provider search resilient enough to assemble courses for arbitrary keywords.
+- [x] Add automated coverage for live provider query handling and unavailable-provider recovery.
+- [ ] Validate universal keyword searches in the focused course and push the verified repair to GitHub for Vercel.

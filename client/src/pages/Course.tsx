@@ -95,7 +95,7 @@ export default function Course() {
   const canSearch = courseTopic.length >= 2;
   const liveSearch = trpc.liveSearch.search.useQuery(
     { query: canSearch ? courseTopic : "learning" },
-    { enabled: canSearch, staleTime: 60_000, retry: 0 },
+    { enabled: canSearch, staleTime: 60_000, retry: 2, retryDelay: attempt => Math.min(1_000 * (attempt + 1), 3_000) },
   );
 
   const courseLessons = useMemo<CourseLesson[]>(() => {
@@ -370,7 +370,7 @@ export default function Course() {
             </aside>
           </section>
         ) : (
-          <div className="flex min-h-[55vh] flex-col items-center justify-center border border-dashed border-[#CDD1D5] bg-white px-6 text-center"><Sparkles className="h-6 w-6 text-[#777C83]" /><h2 className="mt-5 font-display text-4xl">No course assembled yet.</h2><p className="mt-3 max-w-md text-sm leading-6 text-[#73777C]">{liveSearch.data?.message || "Try a clearer topic, such as “intro to Python” or “French Revolution.”"}</p><Button type="button" onClick={() => setLocation("/")} variant="outline" className="mt-6 border-[#BFC3C7] bg-white text-[#292A28] hover:bg-[#F0F1F2]">Return to the library <ArrowRight className="ml-2 h-4 w-4" /></Button></div>
+          <div className="flex min-h-[55vh] flex-col items-center justify-center border border-dashed border-[#CDD1D5] bg-white px-6 text-center"><Sparkles className="h-6 w-6 text-[#777C83]" /><h2 className="mt-5 font-display text-4xl">No course assembled yet.</h2><p className="mt-3 max-w-md text-sm leading-6 text-[#73777C]">{liveSearch.data?.message || "Searching live YouTube-compatible sources for this topic."}</p><div className="mt-6 flex flex-wrap justify-center gap-3"><Button type="button" onClick={() => void liveSearch.refetch()} disabled={liveSearch.isFetching} className="bg-[#252624] text-white hover:bg-[#50534F]">{liveSearch.isFetching ? "Searching…" : "Retry live search"}</Button><Button type="button" onClick={() => setLocation("/")} variant="outline" className="border-[#BFC3C7] bg-white text-[#292A28] hover:bg-[#F0F1F2]">Return to the library <ArrowRight className="ml-2 h-4 w-4" /></Button></div></div>
         )}
       </main>
     </div>

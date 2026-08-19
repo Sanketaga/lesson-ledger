@@ -50,6 +50,33 @@ describe("live search result mapping", () => {
     ]);
   });
 
+  it("assembles a live course from the first healthy YouTube-compatible provider for an arbitrary keyword", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("api.piped.private.coffee")) {
+        return {
+          ok: true,
+          json: async () => ({
+            items: [{
+              type: "stream",
+              url: "/watch?v=llm123",
+              title: "Large language models for beginners",
+              uploaderName: "Example Teacher",
+              thumbnail: "https://image.example/llm.jpg",
+              duration: "12:00",
+            }],
+          }),
+        };
+      }
+      return { ok: false, json: async () => ({}) };
+    }));
+
+    await expect(searchEducationalVideos("llm")).resolves.toMatchObject({
+      status: "ok",
+      source: "piped",
+      results: [expect.objectContaining({ videoId: "llm123" })],
+    });
+  });
+
   it("reports a clear no-result state when providers respond without matching videos", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => [] }));
 
