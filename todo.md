@@ -28,3 +28,6 @@
 - [x] Define a compliant in-course screenshot workflow for the cross-origin lesson player.
 - [x] Add visible Play/Pause and Screenshot controls to the focused course player.
 - [x] Validate keyboard controls, on-screen controls, capture feedback, and responsive behavior; save the updated checkpoint.
+- [x] Diagnose and repair the student screenshot action so its capture and download path is dependable.
+- [x] Add visible five-second rewind and five-second forward controls to the focused player.
+- [x] Validate screenshot capture, Play/Pause, rewind, forward, keyboard behavior, and responsive controls; save the updated checkpoint.

@@ -88,6 +88,12 @@ The first live capture attempt was cancelled before a tab was selected. The scre
 
 The user-selected current tab completed the live capture successfully. Lesson Ledger displayed “Screenshot downloaded. It stays on your device.” while the student remained in the bundled neural-network course, confirming the end-to-end local download path.
 
+The revised focused player now displays course-owned **5s back**, **Play/Pause**, **5s forward**, and **Screenshot** actions together. After playback began, the forward control returned the in-page status “Moved forward 5 seconds,” without leaving the course.
+
+The repaired Screenshot action now enters a clear pending state labelled “Capturing” and explains that the current Lesson Ledger tab must be selected. The native browser picker is awaiting that final tab selection to create the preview and downloadable image.
+
+The repaired capture completed successfully: the player reported “Screenshot ready and downloaded,” displayed an in-page preview, and exposed a **Download again** action. The visible rewind control also returned “Moved back 5 seconds,” confirming both five-second directions now respond within the focused course.
+
 ### Validation Observation
 
 The dedicated `/learn/<query>` route resolves an ordinary request into an eight-lesson in-site course workspace. The route shows a single embedded lesson, a numbered outline with a visible current lesson, and no topic section. Application navigation returns only to the library; Lesson Ledger itself provides no external-source action in the focused workspace.
