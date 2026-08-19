@@ -10,19 +10,11 @@
   },
   "rewrites": [
     {
-      "source": "/api/trpc/:path*",
-      "destination": "/api/trpc/[...path]"
-    },
-    {
-      "source": "/api/oauth/callback",
-      "destination": "/api/oauth/callback"
-    },
-    {
       "source": "/manus-storage/:path*",
-      "destination": "/api/manus-storage/[...path]"
+      "destination": "/api/manus-storage/:path*"
     },
     {
-      "source": "/:path*",
+      "source": "/:path((?!api/|manus-storage/).*)",
       "destination": "/index.html"
     }
   ]
