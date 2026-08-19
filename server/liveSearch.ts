@@ -17,6 +17,17 @@ export type LiveSearchResponse = {
   source: SearchProvider | null;
   results: LiveSearchResult[];
   message?: string;
+  // debug is only present when diagnosing issues; optional so clients are unaffected.
+  debug?: {
+    attempts: {
+      provider: SearchProvider;
+      endpoint?: string;
+      responded: boolean;
+      resultCount: number;
+      error?: string;
+      tookMs?: number;
+    }[];
+  };
 };
 
 const INVIDIOUS_INSTANCES = [
@@ -140,7 +151,8 @@ export function mapYouTubeSearchHtml(html: string): LiveSearchResult[] {
       .filter(item => item.videoId && item.title)
       .filter((item, index, items) => items.findIndex(candidate => candidate.videoId === item.videoId) === index)
       .slice(0, 8);
-  } catch {
+  } catch (err) {
+    // keep quiet on parse errors
     return [];
   }
 }
@@ -151,9 +163,36 @@ type ProviderAttempt = {
   results: LiveSearchResult[];
 };
 
+const JSON_TIMEOUT = 6_000;
+const TEXT_TIMEOUT = 10_000;
+
+async function ensureFetchAvailable() {
+  if (typeof globalThis.fetch !== "undefined") return;
+  try {
+    // try undici first (bundled in newer runtimes), fall back to node-fetch
+    const undici = await import("undici");
+    // @ts-ignore assign
+    globalThis.fetch = undici.fetch;
+    // @ts-ignore assign
+    globalThis.AbortController = undici.AbortController;
+    console.info("liveSearch: polyfilled fetch with undici");
+  } catch (e) {
+    try {
+      const nodeFetch = await import("node-fetch");
+      // @ts-ignore assign
+      globalThis.fetch = nodeFetch.default || nodeFetch;
+      // @ts-ignore assign
+      globalThis.AbortController = (await import("abort-controller")).AbortController;
+      console.info("liveSearch: polyfilled fetch with node-fetch");
+    } catch (err) {
+      console.warn("liveSearch: could not polyfill fetch — server environment may not support fetch or polyfills");
+    }
+  }
+}
+
 async function fetchJson(url: string): Promise<{ responded: boolean; payload: unknown }> {
   const abortController = new AbortController();
-  const timeout = setTimeout(() => abortController.abort(), 4_500);
+  const timeout = setTimeout(() => abortController.abort(), JSON_TIMEOUT);
   try {
     const response = await fetch(url, {
       signal: abortController.signal,
@@ -161,7 +200,7 @@ async function fetchJson(url: string): Promise<{ responded: boolean; payload: un
     });
     if (!response.ok) return { responded: false, payload: undefined };
     return { responded: true, payload: await response.json() };
-  } catch {
+  } catch (err) {
     return { responded: false, payload: undefined };
   } finally {
     clearTimeout(timeout);
@@ -170,7 +209,7 @@ async function fetchJson(url: string): Promise<{ responded: boolean; payload: un
 
 async function fetchText(url: string): Promise<{ responded: boolean; body: string }> {
   const abortController = new AbortController();
-  const timeout = setTimeout(() => abortController.abort(), 8_000);
+  const timeout = setTimeout(() => abortController.abort(), TEXT_TIMEOUT);
   try {
     const response = await fetch(url, {
       signal: abortController.signal,
@@ -182,7 +221,7 @@ async function fetchText(url: string): Promise<{ responded: boolean; body: strin
     });
     if (!response.ok) return { responded: false, body: "" };
     return { responded: true, body: await response.text() };
-  } catch {
+  } catch (err) {
     return { responded: false, body: "" };
   } finally {
     clearTimeout(timeout);
@@ -193,26 +232,39 @@ async function searchProvider(
   provider: SearchProvider,
   instance: string,
   encodedQuery: string,
-): Promise<ProviderAttempt> {
+): Promise<ProviderAttempt & { endpoint?: string; tookMs?: number; error?: string }> {
   const endpoint = provider === "invidious"
     ? `${instance}/api/v1/search?q=${encodedQuery}&type=video&region=US`
     : `${instance}/search?q=${encodedQuery}&region=US&filter=videos`;
-  const response = await fetchJson(endpoint);
-  return {
-    provider,
-    responded: response.responded,
-    results: provider === "invidious" ? mapInvidiousResults(response.payload) : mapPipedResults(response.payload),
-  };
+  const start = Date.now();
+  try {
+    const response = await fetchJson(endpoint);
+    const tookMs = Date.now() - start;
+    return {
+      provider,
+      endpoint,
+      responded: response.responded,
+      results: provider === "invidious" ? mapInvidiousResults(response.payload) : mapPipedResults(response.payload),
+      tookMs,
+    };
+  } catch (err: any) {
+    return { provider, endpoint, responded: false, results: [], tookMs: Date.now() - start, error: String(err) };
+  }
 }
 
-async function searchYouTube(encodedQuery: string): Promise<ProviderAttempt> {
-  const response = await fetchText(`https://www.youtube.com/results?search_query=${encodedQuery}`);
-  return { provider: "youtube", responded: response.responded, results: mapYouTubeSearchHtml(response.body) };
+async function searchYouTube(encodedQuery: string): Promise<ProviderAttempt & { endpoint?: string; tookMs?: number; error?: string }> {
+  const endpoint = `https://www.youtube.com/results?search_query=${encodedQuery}`;
+  const start = Date.now();
+  try {
+    const response = await fetchText(endpoint);
+    const tookMs = Date.now() - start;
+    return { provider: "youtube", endpoint, responded: response.responded, results: mapYouTubeSearchHtml(response.body), tookMs };
+  } catch (err: any) {
+    return { provider: "youtube", endpoint, responded: false, results: [], tookMs: Date.now() - start, error: String(err) };
+  }
 }
 
-// --- New: optional YouTube Data API lookup (more reliable when an API key is configured)
 function parseISODurationToSeconds(duration = "") {
-  // Example: PT1H2M3S or PT15M33S or PT45S
   const match = duration.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
   if (!match) return 0;
   const hours = Number(match[1] || 0);
@@ -221,20 +273,20 @@ function parseISODurationToSeconds(duration = "") {
   return hours * 3600 + minutes * 60 + seconds;
 }
 
-async function searchYouTubeDataApi(encodedQuery: string): Promise<ProviderAttempt> {
+async function searchYouTubeDataApi(encodedQuery: string): Promise<ProviderAttempt & { endpoint?: string; tookMs?: number; error?: string }> {
   const key = process.env.YOUTUBE_API_KEY || process.env.YT_API_KEY || "";
-  if (!key) return { provider: "youtube", responded: false, results: [] };
+  if (!key) return { provider: "youtube", responded: false, results: [], endpoint: undefined };
 
-  // Search for videos (returns snippets with videoId)
   const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=8&q=${encodedQuery}&key=${key}`;
+  const start = Date.now();
   const searchResp = await fetchJson(searchUrl);
+  const tookMs = Date.now() - start;
   if (!searchResp.responded || !isRecord(searchResp.payload) || !Array.isArray((searchResp.payload as any).items)) {
-    return { provider: "youtube", responded: false, results: [] };
+    return { provider: "youtube", responded: false, results: [], endpoint: searchUrl, tookMs };
   }
 
   const items = (searchResp.payload as any).items as any[];
   const ids = items.map(i => i.id?.videoId).filter(Boolean);
-  // Attempt to fetch durations via the Videos API
   let durationsMap: Record<string, string> = {};
   if (ids.length > 0) {
     const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids.join(",")}&key=${key}`;
@@ -267,47 +319,59 @@ async function searchYouTubeDataApi(encodedQuery: string): Promise<ProviderAttem
     .filter(r => r.videoId && r.title)
     .slice(0, 8);
 
-  return { provider: "youtube", responded: true, results };
+  return { provider: "youtube", responded: true, results, endpoint: searchUrl, tookMs };
 }
 
 export async function searchEducationalVideos(query: string): Promise<LiveSearchResponse> {
+  await ensureFetchAvailable();
   const normalizedQuery = normalizeLearningQuery(query) || query.trim();
   if (!normalizedQuery) return { status: "empty", source: null, results: [] };
   const encodedQuery = encodeURIComponent(normalizedQuery);
 
-  const attempts: Promise<ProviderAttempt>[] = [];
+  console.info("liveSearch: query=", normalizedQuery);
 
-  // Prefer the YouTube Data API if a key is configured (most reliable).
+  const attempts: Promise<ProviderAttempt & { endpoint?: string; tookMs?: number; error?: string }>[] = [];
+
+  // Prefer Data API when present
   if (process.env.YOUTUBE_API_KEY || process.env.YT_API_KEY) {
     attempts.push(searchYouTubeDataApi(encodedQuery));
   }
 
-  // Then try public relays (piped + invidious)
+  // Try YouTube HTML scraping early — it's often the fastest to return usable results
+  attempts.push(searchYouTube(encodedQuery));
+
+  // Then try public relays
   attempts.push(...PIPED_INSTANCES.map(instance => searchProvider("piped", instance, encodedQuery)));
   attempts.push(...INVIDIOUS_INSTANCES.map(instance => searchProvider("invidious", instance, encodedQuery)));
 
-  // Finally fall back to HTML scraping of YouTube search results
-  attempts.push(searchYouTube(encodedQuery));
+  const debugAttempts: { provider: SearchProvider; endpoint?: string; responded: boolean; resultCount: number; error?: string; tookMs?: number }[] = [];
 
-  // Public relays change availability frequently. Return immediately when any
-  // provider produces videos instead of waiting for slower or blocked relays.
   return await new Promise<LiveSearchResponse>(resolve => {
     let completed = 0;
     let providerResponded = false;
     let settled = false;
-    attempts.forEach(async attempt => {
-      const result = await attempt;
-      completed += 1;
-      providerResponded = providerResponded || result.responded;
-      if (!settled && result.results.length > 0) {
-        settled = true;
-        resolve({ status: "ok", source: result.provider, results: result.results.slice(0, 8) });
-        return;
+    attempts.forEach(async attemptPromise => {
+      try {
+        const result = await attemptPromise;
+        completed += 1;
+        providerResponded = providerResponded || result.responded;
+        debugAttempts.push({ provider: result.provider, endpoint: (result as any).endpoint, responded: result.responded, resultCount: result.results.length, error: (result as any).error, tookMs: (result as any).tookMs });
+        if (!settled && result.results.length > 0) {
+          settled = true;
+          resolve({ status: "ok", source: result.provider, results: result.results.slice(0, 8), debug: { attempts: debugAttempts } });
+          return;
+        }
+      } catch (err: any) {
+        // record the unexpected error for debugging and continue
+        completed += 1;
+        debugAttempts.push({ provider: (err && err.provider) || "youtube", responded: false, resultCount: 0, error: String(err) });
       }
+
       if (!settled && completed === attempts.length) {
-        resolve(providerResponded
-          ? { status: "empty", source: null, results: [], message: "No public videos matched that topic. Try another phrase." }
-          : { status: "unavailable", source: null, results: [], message: "Live video search is temporarily unavailable. Retry in a moment." });
+        const response = providerResponded
+          ? { status: "empty", source: null, results: [], message: "No public videos matched that topic. Try another phrase.", debug: { attempts: debugAttempts } }
+          : { status: "unavailable", source: null, results: [], message: "Live video search is temporarily unavailable. Retry in a moment.", debug: { attempts: debugAttempts } };
+        resolve(response);
       }
     });
   });
