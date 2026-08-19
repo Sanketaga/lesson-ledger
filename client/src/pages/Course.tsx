@@ -62,6 +62,9 @@ type CourseLesson = {
   embedUrl: string;
   source: "catalog" | "live";
   learningStage?: string;
+  roadmapModuleId?: string;
+  roadmapModuleTitle?: string;
+  roadmapModuleObjective?: string;
 };
 
 function decodeCourseQuery(value: string) {
@@ -116,9 +119,20 @@ export default function Course() {
     { query: canSearch ? courseTopic : "learning" },
     { enabled: canSearch, staleTime: 60_000, retry: 2, retryDelay: attempt => Math.min(1_000 * (attempt + 1), 3_000) },
   );
+  const roadmap = liveSearch.data?.roadmap;
 
   const courseLessons = useMemo<CourseLesson[]>(() => {
-    const localLessons = filterCatalog("All", courseTopic).map(fromCatalog);
+    const localLessons = filterCatalog("All", courseTopic).map((video, index) => {
+      const fallbackModule = roadmap?.modules[Math.min(index, Math.max(0, (roadmap?.modules.length ?? 1) - 1))];
+      return {
+        ...fromCatalog(video),
+        ...(fallbackModule ? {
+          roadmapModuleId: fallbackModule.id,
+          roadmapModuleTitle: fallbackModule.title,
+          roadmapModuleObjective: fallbackModule.objective,
+        } : {}),
+      };
+    });
     const localVideoIds = new Set(localLessons.map(lesson => lesson.embedUrl));
     const liveLessons = (liveSearch.data?.results ?? [])
       .map(result => ({
@@ -131,10 +145,15 @@ export default function Course() {
         embedUrl: `https://www.youtube-nocookie.com/embed/${result.videoId}?rel=0`,
         source: "live" as const,
         learningStage: result.learningStage,
+        roadmapModuleId: result.roadmapModuleId,
+        roadmapModuleTitle: result.roadmapModuleTitle,
+        roadmapModuleObjective: result.roadmapModuleObjective,
       }))
       .filter(lesson => !localVideoIds.has(lesson.embedUrl));
-    return dedupeCourseSequence([...localLessons, ...liveLessons]);
-  }, [courseTopic, liveSearch.data]);
+    // A complete live roadmap takes priority over loose catalog keyword matches.
+    // The catalog remains the fast, resilient fallback when discovery is unavailable.
+    return dedupeCourseSequence(liveLessons.length >= 3 ? liveLessons : localLessons);
+  }, [courseTopic, liveSearch.data, roadmap]);
 
   // Auto-create and persist a curated playlist in localStorage so users can play the
   // course inside the site. We avoid requiring any explicit user action.
@@ -475,6 +494,17 @@ export default function Course() {
           </div>
         </section>
 
+        {roadmap ? (
+          <section aria-label={`${roadmap.topic} learning roadmap`} className="border-b border-[#DDE0E3] py-7 sm:py-8">
+            <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#85888D]">Your learning roadmap</p><h2 className="mt-2 font-display text-3xl tracking-[-0.04em] text-[#252624]">{roadmap.track} · {roadmap.modules.length} focused modules</h2></div><p className="max-w-sm text-sm leading-6 text-[#70737A]">Each module has one focused lesson, selected before the next topic begins.</p></div>
+            <ol className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{roadmap.modules.map((module, index) => {
+              const lesson = courseLessons.find(candidate => candidate.roadmapModuleId === module.id);
+              const isActive = activeLesson?.roadmapModuleId === module.id;
+              return <li key={module.id} className={`min-h-32 border p-4 transition ${isActive ? "border-[#252624] bg-[#252624] text-white" : lesson ? "border-[#BEC3C7] bg-white" : "border-dashed border-[#D8DBDE] bg-[#FBFBFA]"}`}><p className={`text-[10px] font-semibold uppercase tracking-[0.16em] ${isActive ? "text-white/55" : "text-[#85888D]"}`}>Module {String(index + 1).padStart(2, "0")}</p><h3 className="mt-3 text-sm font-semibold leading-5">{module.title}</h3><p className={`mt-2 text-xs leading-5 ${isActive ? "text-white/72" : "text-[#73777B]"}`}>{lesson ? lesson.title : module.objective}</p></li>;
+            })}</ol>
+          </section>
+        ) : null}
+
         {liveSearch.isFetching && courseLessons.length === 0 ? (
           <div className="flex min-h-[55vh] flex-col items-center justify-center text-center"><Loader2 className="h-6 w-6 animate-spin text-[#6F747B]" /><h2 className="mt-5 font-display text-4xl">Searching for lessons…</h2><p className="mt-3 text-sm text-[#6F747B]">This can take a moment while we pull public videos to build your course.</p></div>
         ) : activeLesson ? (
@@ -513,7 +543,7 @@ export default function Course() {
             <aside className="space-y-5">
               <div className="border border-[#DCE0E2] bg-[#FBFBFA] xl:max-h-[50vh] xl:overflow-y-auto">
                 <div className="border-b border-[#E0E3E5] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Curated playlist</p><p className="mt-1 text-sm text-[#6F7376]">An ordered set of lessons for this topic.</p></div></div></div>
-                <ol className="divide-y divide-[#E1E4E6]">{courseLessons.map((lesson, index) => { const isComplete = learningRecord.completedLessonIds.includes(lesson.id); return <li key={lesson.id} className="px-5 py-4 sm:px-6"><div className="flex items-center justify-between"><div><button type="button" onClick={() => selectLesson(index, true)} className="text-left"><div className="font-medium">{lesson.title}</div><div className="text-xs text-[#6F7376]">Step {index + 1} · {lesson.learningStage ?? "Focused lesson"} · {lesson.channel} · {lesson.duration}</div></button></div><div className="flex items-center gap-2"><button type="button" onClick={() => { setLearningRecord(r => completeLesson(r, lesson.id)); toast.success("Marked complete"); }} className="inline-flex items-center gap-2 rounded bg-white px-2 py-1 text-xs">{isComplete ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Check className="h-4 w-4" />}</button></div></div></li>})}</ol>
+                <ol className="divide-y divide-[#E1E4E6]">{courseLessons.map((lesson, index) => { const isComplete = learningRecord.completedLessonIds.includes(lesson.id); return <li key={lesson.id} className="px-5 py-4 sm:px-6"><div className="flex items-center justify-between"><div><button type="button" onClick={() => selectLesson(index, true)} className="text-left"><div className="font-medium">{lesson.title}</div><div className="text-xs text-[#6F7376]">{lesson.roadmapModuleTitle ?? lesson.learningStage ?? "Focused lesson"} · {lesson.channel} · {lesson.duration}</div></button></div><div className="flex items-center gap-2"><button type="button" onClick={() => { setLearningRecord(r => completeLesson(r, lesson.id)); toast.success("Marked complete"); }} className="inline-flex items-center gap-2 rounded bg-white px-2 py-1 text-xs">{isComplete ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Check className="h-4 w-4" />}</button></div></div></li>})}</ol>
               </div>
 
               <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Course progress</p><p className="mt-1 text-sm text-[#6F7376]">{courseProgress}% complete</p></div><div className="text-sm text-[#6F7376]"><button type="button" onClick={() => { localStorage.removeItem(`lesson-ledger:playlist:${encodeURIComponent(courseTopic)}`); toast.success("Removed curated playlist"); }} className="text-xs underline">Remove playlist</button></div></div></div>

@@ -1,4 +1,5 @@
 import { normalizeLearningQuery } from "../shared/learningQuery";
+import { buildLearningRoadmap, type LearningRoadmap, type RoadmapModule } from "./roadmap";
 
 type SearchProvider = "invidious" | "piped" | "youtube";
 
@@ -54,12 +55,16 @@ export type LiveSearchResult = {
   provider: SearchProvider;
   learningStage?: string;
   curriculumStageHint?: number;
+  roadmapModuleId?: string;
+  roadmapModuleTitle?: string;
+  roadmapModuleObjective?: string;
 };
 
 export type LiveSearchResponse = {
   status: "ok" | "empty" | "unavailable";
   source: SearchProvider | null;
   results: LiveSearchResult[];
+  roadmap?: LearningRoadmap;
   message?: string;
   // debug is only present when diagnosing issues; optional so clients are unaffected.
   debug?: {
@@ -115,6 +120,20 @@ function educationalScore(result: LiveSearchResult, intent: LearningIntent) {
   return topicMatches * 8 + instructionMatches * 3 - curriculumStage(result);
 }
 
+function roadmapModuleForResult(result: LiveSearchResult, roadmap: LearningRoadmap): RoadmapModule {
+  const text = `${result.title} ${result.note} ${result.channel}`.toLowerCase();
+  const hintedModule = typeof result.curriculumStageHint === "number" ? roadmap.modules[result.curriculumStageHint] : undefined;
+  const semanticStage = curriculumStage(result);
+  return roadmap.modules
+    .map(module => {
+      const keywordMatches = module.keywords.filter(keyword => text.includes(keyword)).length;
+      const queryStageBonus = hintedModule?.id === module.id ? 8 : 0;
+      const semanticStageBonus = semanticStage === module.stage ? 4 : 0;
+      return { module, score: keywordMatches * 5 + queryStageBonus + semanticStageBonus };
+    })
+    .sort((left, right) => right.score - left.score || left.module.stage - right.module.stage)[0]?.module ?? roadmap.modules[0];
+}
+
 function lessonDurationSeconds(duration: string) {
   const clockParts = duration.split(":").map(part => Number(part));
   if (clockParts.length === 2 && clockParts.every(Number.isFinite)) return clockParts[0] * 60 + clockParts[1];
@@ -135,8 +154,8 @@ function isLanguageLearningDetour(result: LiveSearchResult, intent: LearningInte
   return LANGUAGE_LEARNING_DETOUR_TERMS.test(`${result.title} ${result.note} ${result.channel}`);
 }
 
-/** Filters generic-provider results to teaching material and orders remaining lessons from foundations to practice. */
-export function curateLearningResults(results: LiveSearchResult[], intent: LearningIntent) {
+/** Filters generic-provider results and assigns the strongest lesson to each named roadmap module. */
+export function curateLearningResults(results: LiveSearchResult[], intent: LearningIntent, roadmap?: LearningRoadmap) {
   const uniqueResults = results.filter((result, index) => results.findIndex(candidate => candidate.videoId === result.videoId) === index);
   const focusedResults = intent.enforceEducationalFocus
     ? uniqueResults.filter(result => {
@@ -146,27 +165,42 @@ export function curateLearningResults(results: LiveSearchResult[], intent: Learn
     : uniqueResults;
 
   const rankedResults = focusedResults
-    .map((result, providerIndex) => ({ result, providerIndex, stage: curriculumStage(result), score: educationalScore(result, intent) }))
+    .map((result, providerIndex) => {
+      const roadmapModule = roadmap ? roadmapModuleForResult(result, roadmap) : undefined;
+      const stage = roadmapModule?.stage ?? curriculumStage(result);
+      return { result, providerIndex, stage, score: educationalScore(result, intent), roadmapModule };
+    })
     .sort((left, right) => left.stage - right.stage || right.score - left.score || left.providerIndex - right.providerIndex);
   const seenTeachingFingerprints = new Set<string>();
   const lessonsPerStage = new Map<number, number>();
+  const lessonsPerRoadmapModule = new Set<string>();
   let completeCourseSeen = false;
 
   return rankedResults
     .filter(item => {
       const fingerprint = canonicalTeachingFingerprint(item.result.title);
       if (!fingerprint || seenTeachingFingerprints.has(fingerprint)) return false;
+      if (item.roadmapModule && lessonsPerRoadmapModule.has(item.roadmapModule.id)) return false;
       if ((lessonsPerStage.get(item.stage) ?? 0) >= 2) return false;
       const isCompleteCourse = COMPLETE_COURSE_TERMS.test(item.result.title);
       if (isCompleteCourse && completeCourseSeen) return false;
       seenTeachingFingerprints.add(fingerprint);
       lessonsPerStage.set(item.stage, (lessonsPerStage.get(item.stage) ?? 0) + 1);
+      if (item.roadmapModule) lessonsPerRoadmapModule.add(item.roadmapModule.id);
       if (isCompleteCourse) completeCourseSeen = true;
       return true;
     })
     .map(item => {
       const { curriculumStageHint: _curriculumStageHint, ...result } = item.result;
-      return { ...result, learningStage: CURRICULUM_STAGE_LABELS[item.stage] ?? "Further practice" };
+      return {
+        ...result,
+        learningStage: CURRICULUM_STAGE_LABELS[item.stage] ?? "Further practice",
+        ...(item.roadmapModule ? {
+          roadmapModuleId: item.roadmapModule.id,
+          roadmapModuleTitle: item.roadmapModule.title,
+          roadmapModuleObjective: item.roadmapModule.objective,
+        } : {}),
+      };
     })
     .slice(0, 8);
 }
@@ -381,21 +415,13 @@ async function searchYouTube(encodedQuery: string): Promise<ProviderAttempt & { 
   }
 }
 
-/** Builds topic-agnostic discovery prompts that seek the main stages of a learnable path. */
-export function buildCurriculumSearchQueries(intent: LearningIntent) {
-  const language = LANGUAGE_TOPICS[intent.topic];
-  const subject = language ? `${language} language` : intent.topic;
-  return [
-    `learn ${subject} introduction fundamentals`,
-    `learn ${subject} basics for beginners`,
-    `${subject} core concepts tutorial`,
-    `${subject} skills and techniques tutorial`,
-    `${subject} practice project examples`,
-  ];
+/** Builds one topic-aware discovery query for each named roadmap module. */
+export function buildCurriculumSearchQueries(intent: LearningIntent, roadmap = buildLearningRoadmap(intent.topic)) {
+  return roadmap.modules.map(module => module.searchQuery);
 }
 
-async function searchYouTubeCurriculum(intent: LearningIntent) {
-  return Promise.all(buildCurriculumSearchQueries(intent).map((query, curriculumStageHint) =>
+async function searchYouTubeCurriculum(intent: LearningIntent, roadmap: LearningRoadmap) {
+  return Promise.all(buildCurriculumSearchQueries(intent, roadmap).map((query, curriculumStageHint) =>
     searchYouTube(encodeURIComponent(query)).then(attempt => ({ ...attempt, curriculumStageHint })),
   ));
 }
@@ -463,24 +489,25 @@ async function searchYouTubeDataApi(encodedQuery: string): Promise<ProviderAttem
 export async function searchEducationalVideos(query: string): Promise<LiveSearchResponse> {
   const intent = buildLearningIntent(query);
   if (!intent.topic) return { status: "empty", source: null, results: [] };
+  const roadmap = buildLearningRoadmap(intent.topic);
   const encodedQuery = encodeURIComponent(intent.searchQuery);
 
   console.info("liveSearch: query=", intent.searchQuery);
 
   const debugAttempts: { provider: SearchProvider; endpoint?: string; responded: boolean; resultCount: number; error?: string; tookMs?: number }[] = [];
-  const curriculumAttempts = await searchYouTubeCurriculum(intent);
+  const curriculumAttempts = await searchYouTubeCurriculum(intent, roadmap);
   const curriculumResults = curriculumAttempts.reduce<LiveSearchResult[]>((all, attempt) =>
     all.concat(attempt.results.map(result => ({ ...result, curriculumStageHint: attempt.curriculumStageHint }))),
   []);
-  const curatedCurriculum = curateLearningResults(curriculumResults, intent);
+  const curatedCurriculum = curateLearningResults(curriculumResults, intent, roadmap);
 
   curriculumAttempts.forEach(attempt => {
-    const curatedCount = curateLearningResults(attempt.results, intent).length;
+    const curatedCount = curateLearningResults(attempt.results, intent, roadmap).length;
     debugAttempts.push({ provider: attempt.provider, endpoint: attempt.endpoint, responded: attempt.responded, resultCount: curatedCount, error: attempt.error, tookMs: attempt.tookMs });
   });
 
   if (curatedCurriculum.length >= 3) {
-    return { status: "ok", source: "youtube", results: curatedCurriculum, debug: { attempts: debugAttempts } };
+    return { status: "ok", source: "youtube", results: curatedCurriculum, roadmap, debug: { attempts: debugAttempts } };
   }
 
   const attempts: Promise<ProviderAttempt & { endpoint?: string; tookMs?: number; error?: string }>[] = [];
@@ -503,11 +530,11 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
         const result = await attemptPromise;
         completed += 1;
         providerResponded = providerResponded || result.responded;
-        const curatedResults = curateLearningResults([...curatedCurriculum, ...result.results], intent);
+        const curatedResults = curateLearningResults([...curatedCurriculum, ...result.results], intent, roadmap);
         debugAttempts.push({ provider: result.provider, endpoint: (result as any).endpoint, responded: result.responded, resultCount: curatedResults.length, error: (result as any).error, tookMs: (result as any).tookMs });
         if (!settled && result.results.length > 0 && curatedResults.length > 0) {
           settled = true;
-          resolve({ status: "ok", source: result.provider, results: curatedResults, debug: { attempts: debugAttempts } });
+          resolve({ status: "ok", source: result.provider, results: curatedResults, roadmap, debug: { attempts: debugAttempts } });
           return;
         }
       } catch (err: any) {
@@ -518,10 +545,10 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
 
       if (!settled && completed === attempts.length) {
         const response: LiveSearchResponse = curatedCurriculum.length > 0
-          ? { status: "ok", source: "youtube", results: curatedCurriculum, debug: { attempts: debugAttempts } }
+          ? { status: "ok", source: "youtube", results: curatedCurriculum, roadmap, debug: { attempts: debugAttempts } }
           : providerResponded
-          ? { status: "empty", source: null, results: [], message: "No teaching-quality videos matched that topic. Try a more specific learning goal.", debug: { attempts: debugAttempts } }
-          : { status: "unavailable", source: null, results: [], message: "Live video search is temporarily unavailable. Retry in a moment.", debug: { attempts: debugAttempts } };
+          ? { status: "empty", source: null, results: [], roadmap, message: "No teaching-quality videos matched that topic. Try a more specific learning goal.", debug: { attempts: debugAttempts } }
+          : { status: "unavailable", source: null, results: [], roadmap, message: "Live video search is temporarily unavailable. Retry in a moment.", debug: { attempts: debugAttempts } };
         resolve(response);
       }
     });

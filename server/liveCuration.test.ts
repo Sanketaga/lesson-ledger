@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildCurriculumSearchQueries, buildLearningIntent, curateLearningResults, searchEducationalVideos, type LiveSearchResult } from "./liveSearch";
+import { buildLearningRoadmap } from "./roadmap";
 
 const result = (videoId: string, title: string): LiveSearchResult => ({
   videoId,
@@ -28,14 +29,48 @@ describe("learning-intent course curation", () => {
     });
   });
 
-  it("plans stage-specific discovery queries for any topic instead of relying on one broad search", () => {
+  it("plans named roadmap-module discovery queries instead of relying on one broad search", () => {
     expect(buildCurriculumSearchQueries(buildLearningIntent("Python"))).toEqual([
-      "learn python introduction fundamentals",
-      "learn python basics for beginners",
-      "python core concepts tutorial",
-      "python skills and techniques tutorial",
-      "python practice project examples",
+      "Python setup installation first program beginner tutorial",
+      "Python syntax variables data types basics tutorial",
+      "Python conditions loops functions tutorial tutorial",
+      "Python files modules error handling debugging tutorial",
+      "Python beginner project build tutorial tutorial",
     ]);
+  });
+
+  it("selects one lesson for each Python roadmap module instead of stacking beginner courses", () => {
+    const intent = buildLearningIntent("Python");
+    const roadmap = buildLearningRoadmap(intent.topic);
+    const curated = curateLearningResults([
+      result("setup", "Python setup: install tools and run your first program"),
+      result("syntax", "Python syntax, variables, and data types tutorial"),
+      result("logic", "Python conditions, loops, and functions tutorial"),
+      result("files", "Python files, modules, and debugging tutorial"),
+      result("project", "Build a Python automation project for beginners"),
+      result("duplicate", "Python crash course for beginners"),
+    ], intent, roadmap);
+
+    expect(curated.map(item => item.roadmapModuleId)).toEqual(["setup", "foundations", "logic", "real-programs", "project"]);
+    expect(curated.map(item => item.roadmapModuleTitle)).toEqual([
+      "Setup & first program", "Syntax & data", "Logic & functions", "Files, modules & errors", "Guided project",
+    ]);
+  });
+
+  it("avoids duplicate full-course tracks while retaining distinct roadmap modules across subject types", () => {
+    ["Python", "Calculus", "Cooking", "Hindi"].forEach(topic => {
+      const intent = buildLearningIntent(topic);
+      const roadmap = buildLearningRoadmap(intent.topic);
+      const curated = curateLearningResults([
+        result("full-one", `${topic} Full Course for Beginners`),
+        result("full-two", `Learn ${topic} in 4 Hours - Full Course`),
+        result("basics", `${topic} basics and core concepts tutorial`),
+        result("practice", `${topic} practice project walkthrough`),
+      ], intent, roadmap);
+
+      expect(curated.filter(item => /full course/i.test(item.title))).toHaveLength(1);
+      expect(new Set(curated.map(item => item.roadmapModuleId)).size).toBe(curated.length);
+    });
   });
 
   it("rejects entertainment and news, then sequences teaching material from foundations to practice", () => {

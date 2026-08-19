@@ -109,3 +109,13 @@
 - [x] Add regression cases that reject academic or practical course results collapsing into mostly introductory lessons or omitting later stages.
 - [x] Preserve stage-specific discovery intent through ranking and re-test academic and practical courses for a balanced multi-stage path.
 - [x] Blend stage-query intent with explicit lesson semantics so skills and practice videos are not mislabeled as beginner setup.
+- [x] Define a topic-agnostic roadmap contract that turns any learning request into clear, progressive modules before video selection.
+- [x] Evaluate sustainable no-cost planning options and choose a roadmap engine that does not make the course builder dependent on paid AI.
+- [x] Generate module-specific lesson searches and assign every course video to one roadmap module instead of ranking broad keyword matches together.
+- [x] Render the learning roadmap in the focused course workspace so students can see the topic-by-topic path they will follow.
+- [x] Add regression coverage for roadmap structure, module alignment, and duplicate-course avoidance across technical, academic, practical, and language topics.
+- [ ] Validate and deploy roadmap-first courses for Python plus representative non-technical topics.
+- [x] Implement the selected Option A planner: a deterministic zero-external-cost roadmap engine compatible with the current Vercel deployment.
+- [x] Assign roadmap module metadata to catalog fallback lessons so every delivered course lesson maps to a named roadmap module.
+- [x] Add duplicate-course avoidance regressions for roadmap-first technical, academic, practical, and language courses.
+- [ ] Push, deploy, and verify fully populated roadmap-first courses in production.
