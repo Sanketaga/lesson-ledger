@@ -104,13 +104,28 @@ function educationalScore(result: LiveSearchResult, intent: LearningIntent) {
   return topicMatches * 8 + instructionMatches * 3 - curriculumStage(result);
 }
 
+function lessonDurationSeconds(duration: string) {
+  const clockParts = duration.split(":").map(part => Number(part));
+  if (clockParts.length === 2 && clockParts.every(Number.isFinite)) return clockParts[0] * 60 + clockParts[1];
+  if (clockParts.length === 3 && clockParts.every(Number.isFinite)) return clockParts[0] * 3600 + clockParts[1] * 60 + clockParts[2];
+  const hours = duration.match(/(\d+(?:\.\d+)?)\s*(?:hr|hour)/i);
+  const minutes = duration.match(/(\d+)\s*(?:min|minute)/i);
+  if (hours || minutes) return Math.round(Number(hours?.[1] || 0) * 3600 + Number(minutes?.[1] || 0) * 60);
+  return null;
+}
+
+function isSubstantiveLesson(result: LiveSearchResult) {
+  const seconds = lessonDurationSeconds(result.duration);
+  return seconds === null || seconds >= 180;
+}
+
 /** Filters generic-provider results to teaching material and orders remaining lessons from foundations to practice. */
 export function curateLearningResults(results: LiveSearchResult[], intent: LearningIntent) {
   const uniqueResults = results.filter((result, index) => results.findIndex(candidate => candidate.videoId === result.videoId) === index);
   const focusedResults = intent.enforceEducationalFocus
     ? uniqueResults.filter(result => {
       const text = `${result.title} ${result.note} ${result.channel}`;
-      return INSTRUCTIONAL_TERMS.test(text) && !NON_INSTRUCTIONAL_TERMS.test(text) && !NON_COURSE_ADVICE_TERMS.test(text);
+      return isSubstantiveLesson(result) && INSTRUCTIONAL_TERMS.test(text) && !NON_INSTRUCTIONAL_TERMS.test(text) && !NON_COURSE_ADVICE_TERMS.test(text);
     })
     : uniqueResults;
 
