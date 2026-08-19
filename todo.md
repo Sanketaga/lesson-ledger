@@ -68,3 +68,8 @@
 - [x] Add automated coverage for live provider query handling and unavailable-provider recovery.
 - [x] Push the final live-search repair, including the direct YouTube fallback, to GitHub main and confirm the verified state is synchronized for Vercel.
 - [x] Add and test a direct YouTube search fallback so arbitrary topics can still assemble a course when public relays fail.
+- [x] Reproduce the Vercel Home.tsx parser failure from the deployed GitHub revision and isolate the malformed JSX.
+- [x] Reconcile the newer GitHub main revision with the verified local release before applying the build repair.
+- [x] Preserve the verified focused landing experience and in-site course navigation while repairing the Vercel source revision.
+- [x] Restore a valid Home.tsx and add regression coverage for the landing-page module.
+- [ ] Run the exact Vercel build, commit the repair, and synchronize GitHub main for redeployment.

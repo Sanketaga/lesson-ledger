@@ -95,8 +95,8 @@ export function mapPipedResults(payload: unknown): LiveSearchResult[] {
   if (!isRecord(payload) || !Array.isArray((payload as any).items)) return [];
   return (payload as any).items
     .filter(isRecord)
-    .filter(item => stringValue((item as any).type) === "stream")
-    .map(item => ({
+    .filter((item: unknown) => stringValue((item as any).type) === "stream")
+    .map((item: unknown) => ({
       videoId: videoIdFromPipedUrl(stringValue((item as any).url)),
       title: stringValue((item as any).title),
       channel: stringValue((item as any).uploaderName),
@@ -105,7 +105,7 @@ export function mapPipedResults(payload: unknown): LiveSearchResult[] {
       note: stringValue((item as any).shortDescription).replace(/\s+/g, " ").trim().slice(0, 180) || "Live result discovered through the optional provider.",
       provider: "piped" as const,
     }))
-    .filter(item => item.videoId && item.title)
+    .filter((item: LiveSearchResult) => item.videoId && item.title)
     .slice(0, 8);
 }
 
@@ -165,30 +165,6 @@ type ProviderAttempt = {
 
 const JSON_TIMEOUT = 6_000;
 const TEXT_TIMEOUT = 10_000;
-
-async function ensureFetchAvailable() {
-  if (typeof globalThis.fetch !== "undefined") return;
-  try {
-    // try undici first (bundled in newer runtimes), fall back to node-fetch
-    const undici = await import("undici");
-    // @ts-ignore assign
-    globalThis.fetch = undici.fetch;
-    // @ts-ignore assign
-    globalThis.AbortController = undici.AbortController;
-    console.info("liveSearch: polyfilled fetch with undici");
-  } catch (e) {
-    try {
-      const nodeFetch = await import("node-fetch");
-      // @ts-ignore assign
-      globalThis.fetch = nodeFetch.default || nodeFetch;
-      // @ts-ignore assign
-      globalThis.AbortController = (await import("abort-controller")).AbortController;
-      console.info("liveSearch: polyfilled fetch with node-fetch");
-    } catch (err) {
-      console.warn("liveSearch: could not polyfill fetch — server environment may not support fetch or polyfills");
-    }
-  }
-}
 
 async function fetchJson(url: string): Promise<{ responded: boolean; payload: unknown }> {
   const abortController = new AbortController();
@@ -303,16 +279,18 @@ async function searchYouTubeDataApi(encodedQuery: string): Promise<ProviderAttem
   const results: LiveSearchResult[] = items
     .filter(isRecord)
     .map(item => {
-      const videoId = item.id?.videoId || "";
-      const snippet = item.snippet || {};
-      const thumb = (snippet.thumbnails && (snippet.thumbnails.high || snippet.thumbnails.medium || snippet.thumbnails.default)) || null;
+      const id = isRecord(item.id) ? item.id : {};
+      const videoId = stringValue(id.videoId);
+      const snippet = isRecord(item.snippet) ? item.snippet : {};
+      const thumbnails = isRecord(snippet.thumbnails) ? snippet.thumbnails : {};
+      const thumb = [thumbnails.high, thumbnails.medium, thumbnails.default].find(isRecord);
       return {
-        videoId: String(videoId),
-        title: String(snippet.title || ""),
-        channel: String(snippet.channelTitle || "YouTube creator"),
-        thumbnail: thumb ? String(thumb.url) : "",
+        videoId,
+        title: stringValue(snippet.title),
+        channel: stringValue(snippet.channelTitle) || "YouTube creator",
+        thumbnail: thumb ? stringValue(thumb.url) : "",
         duration: videoId && durationsMap[videoId] ? durationsMap[videoId] : "On demand",
-        note: String(snippet.description || "").replace(/\s+/g, " ").trim().slice(0, 180) || "Public YouTube result discovered via Data API.",
+        note: stringValue(snippet.description).replace(/\s+/g, " ").trim().slice(0, 180) || "Public YouTube result discovered via Data API.",
         provider: "youtube" as const,
       };
     })
@@ -323,7 +301,6 @@ async function searchYouTubeDataApi(encodedQuery: string): Promise<ProviderAttem
 }
 
 export async function searchEducationalVideos(query: string): Promise<LiveSearchResponse> {
-  await ensureFetchAvailable();
   const normalizedQuery = normalizeLearningQuery(query) || query.trim();
   if (!normalizedQuery) return { status: "empty", source: null, results: [] };
   const encodedQuery = encodeURIComponent(normalizedQuery);
@@ -368,7 +345,7 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
       }
 
       if (!settled && completed === attempts.length) {
-        const response = providerResponded
+        const response: LiveSearchResponse = providerResponded
           ? { status: "empty", source: null, results: [], message: "No public videos matched that topic. Try another phrase.", debug: { attempts: debugAttempts } }
           : { status: "unavailable", source: null, results: [], message: "Live video search is temporarily unavailable. Retry in a moment.", debug: { attempts: debugAttempts } };
         resolve(response);
