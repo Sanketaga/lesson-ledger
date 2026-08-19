@@ -78,6 +78,34 @@ export function describeYouTubePlayerError(code: number) {
   return "The lesson could not start. Choose another lesson or try again shortly.";
 }
 
+export type ManagedPlaybackViewState = {
+  isPlaying: boolean;
+  allowNativeStart: boolean;
+  status: string;
+  confirmed: boolean;
+  shouldRetryCuedPlayback: boolean;
+};
+
+export function getManagedPlaybackViewState(state: number, requestedPlayback: boolean): ManagedPlaybackViewState | null {
+  if (state === 1) return { isPlaying: true, allowNativeStart: false, status: "Playing lesson.", confirmed: true, shouldRetryCuedPlayback: false };
+  if (state === 2) return { isPlaying: false, allowNativeStart: false, status: "Lesson paused.", confirmed: false, shouldRetryCuedPlayback: false };
+  if (state === 3) return { isPlaying: false, allowNativeStart: false, status: "Buffering lesson…", confirmed: false, shouldRetryCuedPlayback: false };
+  if (state === 5) return requestedPlayback
+    ? { isPlaying: false, allowNativeStart: false, status: "Starting lesson…", confirmed: false, shouldRetryCuedPlayback: true }
+    : { isPlaying: false, allowNativeStart: false, status: "Lesson ready. Press Play when you are ready.", confirmed: false, shouldRetryCuedPlayback: false };
+  if (state === 0) return { isPlaying: false, allowNativeStart: false, status: "Lesson finished. Mark it complete when you are ready to continue.", confirmed: false, shouldRetryCuedPlayback: false };
+  if (state === -1 && !requestedPlayback) return { isPlaying: false, allowNativeStart: false, status: "Lesson ready. Press Play when you are ready.", confirmed: false, shouldRetryCuedPlayback: false };
+  return null;
+}
+
+export function getFocusedPlayerGuard(allowNativeStart: boolean) {
+  return {
+    allowIframePointerEvents: allowNativeStart,
+    showOwnedPlayOverlay: !allowNativeStart,
+    preserveCourseControlGuard: true,
+  };
+}
+
 export function loadYouTubeIframeApi(): Promise<YouTubeNamespace> {
   if (typeof window === "undefined") return Promise.reject(new Error("The YouTube player is only available in a browser."));
   if (window.YT?.Player) return Promise.resolve(window.YT);

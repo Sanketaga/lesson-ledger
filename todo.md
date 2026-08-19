@@ -83,5 +83,5 @@
 - [x] Repair in-site YouTube player startup while preserving owned controls, focus protection, and course navigation.
 - [ ] Add regression coverage and verify video playback plus controls on the deployed course workspace.
 - [ ] Confirm at least one deployed lesson reaches the YouTube `Playing` state and advances its current time after the repaired start flow.
-- [ ] Add state-machine coverage for buffered, cued, error, and guarded native-start player behavior.
+- [x] Add state-machine coverage for buffered, cued, error, and guarded native-start player behavior.
 - [ ] Verify the temporary native-start path permits only in-video playback and does not re-expose external navigation.

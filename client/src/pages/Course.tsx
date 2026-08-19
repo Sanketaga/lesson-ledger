@@ -8,6 +8,8 @@ import { isFullscreenTarget } from "@/lib/fullscreen";
 import {
   createManagedPlayerVars,
   describeYouTubePlayerError,
+  getFocusedPlayerGuard,
+  getManagedPlaybackViewState,
   getYouTubeEmbedHost,
   getYouTubeVideoId,
   loadYouTubeIframeApi,
@@ -165,6 +167,7 @@ export default function Course() {
   const completedCount = courseLessons.filter(lesson => learningRecord.completedLessonIds.includes(lesson.id)).length;
   const courseProgress = courseLessons.length ? Math.round((completedCount / courseLessons.length) * 100) : 0;
   const activeNotes = activeLesson ? learningRecord.notes.filter(note => note.lessonId === activeLesson.id) : [];
+  const playerGuard = getFocusedPlayerGuard(allowNativeStart);
 
   const setPlayerPlayback = (shouldPlay: boolean) => {
     requestedPlaybackRef.current = shouldPlay;
@@ -260,33 +263,16 @@ export default function Course() {
               else setPlayerStatus("Lesson ready. Press Play when you are ready.");
             },
             onStateChange: event => {
-              if (event.data === 1) {
-                playbackConfirmedRef.current = true;
-                setIsPlaying(true);
-                setAllowNativeStart(false);
-                setPlayerStatus("Playing lesson.");
-              } else if (event.data === 2) {
-                playbackConfirmedRef.current = false;
-                setIsPlaying(false);
-                setAllowNativeStart(false);
-                setPlayerStatus("Lesson paused.");
-              } else if (event.data === 3) {
-                setIsPlaying(false);
-                setPlayerStatus("Buffering lesson…");
-              } else if (event.data === 5) {
-                setIsPlaying(false);
-                if (requestedPlaybackRef.current) {
-                  window.setTimeout(() => {
-                    if (!disposed && playerRef.current === event.target && requestedPlaybackRef.current) event.target.playVideo();
-                  }, 150);
-                } else {
-                  setPlayerStatus("Lesson ready. Press Play when you are ready.");
-                }
-              } else if (event.data === 0) {
-                playbackConfirmedRef.current = false;
-                setIsPlaying(false);
-                setAllowNativeStart(false);
-                setPlayerStatus("Lesson finished. Mark it complete when you are ready to continue.");
+              const playbackViewState = getManagedPlaybackViewState(event.data, requestedPlaybackRef.current);
+              if (!playbackViewState) return;
+              playbackConfirmedRef.current = playbackViewState.confirmed;
+              setIsPlaying(playbackViewState.isPlaying);
+              setAllowNativeStart(playbackViewState.allowNativeStart);
+              setPlayerStatus(playbackViewState.status);
+              if (playbackViewState.shouldRetryCuedPlayback) {
+                window.setTimeout(() => {
+                  if (!disposed && playerRef.current === event.target && requestedPlaybackRef.current) event.target.playVideo();
+                }, 150);
               }
             },
             onError: event => {
@@ -481,8 +467,8 @@ export default function Course() {
             <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
               <div className="overflow-hidden border border-[#2A2B29] bg-[#171817] shadow-[0_18px_38px_rgba(27,29,28,0.16)]">
                 <div ref={playerSurfaceRef} className="relative aspect-video overflow-hidden bg-black [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:aspect-auto">
-                  <div ref={playerHostRef} aria-label={`${activeLesson.title} video player`} className={`h-full w-full ${allowNativeStart ? "pointer-events-auto" : "pointer-events-none"}`} />
-                  {!isPlaying && !allowNativeStart ? <button type="button" onClick={() => setPlayerPlayback(true)} className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 text-white transition"><Play className="h-10 w-10" /></button> : null}
+                  <div ref={playerHostRef} aria-label={`${activeLesson.title} video player`} className={`h-full w-full ${playerGuard.allowIframePointerEvents ? "pointer-events-auto" : "pointer-events-none"}`} />
+                  {!isPlaying && playerGuard.showOwnedPlayOverlay ? <button type="button" onClick={() => setPlayerPlayback(true)} className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 text-white transition"><Play className="h-10 w-10" /></button> : null}
                   {allowNativeStart ? <div className="pointer-events-none absolute inset-x-0 top-0 z-30 h-20 bg-gradient-to-b from-black/50 to-transparent" aria-hidden="true" /> : null}
                   <div className="absolute right-3 top-3 z-40 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2">
                     <button type="button" onClick={() => seekBy(-5)} className="inline-flex h-9 items-center gap-1 bg-white px-2.5 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#F0F1F2]">-5s</button>
