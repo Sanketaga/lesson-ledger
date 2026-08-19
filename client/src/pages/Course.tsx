@@ -22,8 +22,10 @@ import {
   completeLesson,
   EMPTY_LEARNING_RECORD,
   formatTimestamp,
+  learningNoteScopeId,
   learningStorageKey,
   mergeLearningRecord,
+  timestampToSeconds,
   type LearningRecord,
 } from "@/lib/learning";
 import { trpc } from "@/lib/trpc";
@@ -49,7 +51,7 @@ import {
   Timer,
   RotateCcw,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
 
 type CourseLesson = {
@@ -191,7 +193,10 @@ export default function Course() {
   const activeLesson = courseLessons[activeIndex];
   const completedCount = courseLessons.filter(lesson => learningRecord.completedLessonIds.includes(lesson.id)).length;
   const courseProgress = courseLessons.length ? Math.round((completedCount / courseLessons.length) * 100) : 0;
-  const activeNotes = activeLesson ? learningRecord.notes.filter(note => note.lessonId === activeLesson.id) : [];
+  const activeNoteScopeId = activeLesson ? learningNoteScopeId(courseTopic, activeLesson.id, activeLesson.roadmapModuleId) : null;
+  const activeNotes = activeLesson && activeNoteScopeId
+    ? learningRecord.notes.filter(note => note.lessonId === activeNoteScopeId || note.lessonId === activeLesson.id)
+    : [];
   const playerGuard = getFocusedPlayerGuard(allowNativeStart);
 
   const setPlayerPlayback = (shouldPlay: boolean) => {
@@ -441,13 +446,29 @@ export default function Course() {
       ...record,
       notes: [...record.notes, {
         id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
-        lessonId: activeLesson.id,
+        lessonId: learningNoteScopeId(courseTopic, activeLesson.id, activeLesson.roadmapModuleId),
         timestamp: formatTimestamp(noteTimestamp),
         text: noteDraft.trim(),
         createdAt: Date.now(),
       }],
     }));
     setNoteDraft("");
+    toast.success("Timestamped note saved", { description: `Attached to ${formatTimestamp(noteTimestamp)} in this lesson.` });
+  };
+
+  const captureCurrentTimestamp = () => {
+    setNoteTimestamp(formatPlayerElapsedTime(playerSeconds));
+  };
+
+  const seekToNoteTimestamp = (timestamp: string) => {
+    const seconds = timestampToSeconds(timestamp);
+    if (!playerRef.current) {
+      setPlayerStatus("Preparing the lesson player…");
+      return;
+    }
+    playerRef.current.seekTo(seconds, true);
+    setPlayerSeconds(seconds);
+    setPlayerStatus(`Moved to your note at ${formatTimestamp(timestamp)}.`);
   };
 
   const saveRecall = () => {
@@ -548,7 +569,19 @@ export default function Course() {
 
               <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Course progress</p><p className="mt-1 text-sm text-[#6F7376]">{courseProgress}% complete</p></div><div className="text-sm text-[#6F7376]"><button type="button" onClick={() => { localStorage.removeItem(`lesson-ledger:playlist:${encodeURIComponent(courseTopic)}`); toast.success("Removed curated playlist"); }} className="text-xs underline">Remove playlist</button></div></div></div>
 
-              <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Notes</p><p className="mt-1 text-sm text-[#6F7376]">Take notes as you study.</p></div></div></div>
+              <section aria-label="Timestamped notes" className="border border-[#DCE0E2] bg-white p-5 sm:p-6">
+                <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Timestamped notes</p><p className="mt-1 text-sm text-[#6F7376]">Save a thought at the exact point in this lesson.</p></div><NotebookPen className="h-5 w-5 shrink-0 text-[#555954]" /></div>
+                <div className="mt-5 space-y-3">
+                  <label className="sr-only" htmlFor="lesson-note">Note for the current lesson</label>
+                  <textarea id="lesson-note" value={noteDraft} onChange={event => setNoteDraft(event.target.value)} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); saveNote(); } }} placeholder="Write what you want to remember…" className="min-h-24 w-full resize-y border border-[#D8DBDE] bg-[#FBFBFA] p-3 text-sm leading-6 outline-none transition focus:border-[#252624]" />
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    <label className="flex min-w-0 flex-1 items-center gap-2 border border-[#D8DBDE] bg-[#FBFBFA] px-3 py-2 text-sm text-[#555954]"><Timer className="h-4 w-4 shrink-0" /><span className="sr-only">Timestamp</span><input aria-label="Note timestamp" value={noteTimestamp} onChange={event => setNoteTimestamp(event.target.value)} className="min-w-0 flex-1 bg-transparent font-mono outline-none" inputMode="numeric" placeholder="00:00" /></label>
+                    <Button type="button" variant="outline" onClick={captureCurrentTimestamp} className="border-[#C7CCD1] bg-white text-xs">Use {formatPlayerElapsedTime(playerSeconds)}</Button>
+                    <Button type="button" onClick={saveNote} disabled={!noteDraft.trim() || !activeLesson} className="bg-[#252624] text-xs text-white hover:bg-[#3A3B3A]">Save note</Button>
+                  </div>
+                </div>
+                {activeNotes.length > 0 ? <ol className="mt-6 divide-y divide-[#E5E7E8] border-t border-[#E5E7E8]">{activeNotes.map(note => <li key={note.id} className="py-4"><div className="flex items-start gap-3"><button type="button" onClick={() => seekToNoteTimestamp(note.timestamp)} className="shrink-0 border border-[#C7CCD1] bg-[#FBFBFA] px-2 py-1 font-mono text-xs font-semibold text-[#252624] transition hover:border-[#252624]">{note.timestamp}</button><p className="pt-0.5 text-sm leading-6 text-[#50545A]">{note.text}</p></div></li>)}</ol> : <p className="mt-5 border-t border-[#E5E7E8] pt-5 text-sm leading-6 text-[#777B80]">No notes for this lesson yet. Use the current timestamp or type your own, then save a note.</p>}
+              </section>
             </aside>
           </section>
         ) : (

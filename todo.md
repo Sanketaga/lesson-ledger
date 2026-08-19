@@ -119,3 +119,12 @@
 - [x] Assign roadmap module metadata to catalog fallback lessons so every delivered course lesson maps to a named roadmap module.
 - [x] Add duplicate-course avoidance regressions for roadmap-first technical, academic, practical, and language courses.
 - [x] Push, deploy, and verify fully populated roadmap-first courses in production.
+- [ ] Capture a stable, on-record deployed player view showing `Playing lesson.` and a non-zero elapsed time without refreshing the course.
+- [x] Diagnose why timestamped notes cannot be created or displayed in the course workspace.
+- [x] Repair timestamp capture and note-save behavior for the active lesson.
+- [x] Add regression coverage and verify timestamped notes in the browser.
+- [x] Preserve timestamped notes against a stable roadmap module identity when live course discovery returns a different video for that module.
+- [x] Add a Course-level regression that renders the timestamped-note UI and verifies entry, save, and display for the active lesson.
+- [x] Add an integration regression confirming a module-scoped note remains visible after its live video changes.
+- [x] Re-verify stable module-scoped note persistence through a browser save and reload sequence.
+- [ ] Deploy and verify the timestamped-notes repair in production.
