@@ -66,4 +66,5 @@
 - [x] Reproduce arbitrary-keyword live search failures, including the deployed “llm” course request.
 - [x] Make live YouTube-compatible provider search resilient enough to assemble courses for arbitrary keywords.
 - [x] Add automated coverage for live provider query handling and unavailable-provider recovery.
-- [ ] Validate universal keyword searches in the focused course and push the verified repair to GitHub for Vercel.
+- [ ] Push the final live-search repair, including the direct YouTube fallback, to GitHub main and confirm the verified state is synchronized for Vercel.
+- [x] Add and test a direct YouTube search fallback so arbitrary topics can still assemble a course when public relays fail.

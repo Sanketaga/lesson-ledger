@@ -52,7 +52,7 @@ type LiveVideo = {
   videoUrl: string;
   embedUrl: string;
   thumbnail: string;
-  provider: "invidious" | "piped";
+  provider: "invidious" | "piped" | "youtube";
 };
 
 type VideoRecord = CatalogVideo | ImportedVideo | LiveVideo;

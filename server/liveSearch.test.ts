@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { formatDuration, mapInvidiousResults, mapPipedResults, searchEducationalVideos } from "./liveSearch";
+import { formatDuration, mapInvidiousResults, mapPipedResults, mapYouTubeSearchHtml, searchEducationalVideos } from "./liveSearch";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -33,20 +33,26 @@ describe("live search result mapping", () => {
 
   it("maps Piped stream results into the shared live-video shape", () => {
     const results = mapPipedResults({
-      items: [
-        {
-          type: "stream",
-          url: "/watch?v=xyz987",
-          title: "A second lesson",
-          uploaderName: "Example Teacher",
-          thumbnail: "https://image.example/thumb.jpg",
-          duration: "10:22",
-        },
-      ],
+      items: [{
+        type: "stream",
+        url: "/watch?v=xyz987",
+        title: "A second lesson",
+        uploaderName: "Example Teacher",
+        thumbnail: "https://image.example/thumb.jpg",
+        duration: "10:22",
+      }],
     });
 
     expect(results).toEqual([
       expect.objectContaining({ videoId: "xyz987", duration: "10:22", provider: "piped" }),
+    ]);
+  });
+
+  it("maps public YouTube search-page video records into the shared course shape", () => {
+    const html = `<script>var ytInitialData = {"contents":{"itemSectionRenderer":{"contents":[{"videoRenderer":{"videoId":"youtube123","title":{"runs":[{"text":"React Hooks tutorial"}]},"ownerText":{"runs":[{"text":"Example Teacher"}]},"thumbnail":{"thumbnails":[{"url":"https://image.example/thumb.jpg"}]},"lengthText":{"simpleText":"14:21"}}}]}}};</script>`;
+
+    expect(mapYouTubeSearchHtml(html)).toEqual([
+      expect.objectContaining({ videoId: "youtube123", title: "React Hooks tutorial", provider: "youtube" }),
     ]);
   });
 
@@ -74,6 +80,20 @@ describe("live search result mapping", () => {
       status: "ok",
       source: "piped",
       results: [expect.objectContaining({ videoId: "llm123" })],
+    });
+  });
+
+  it("falls back to direct YouTube search when every public relay is unavailable", async () => {
+    const html = `<script>var ytInitialData = {"contents":{"itemSectionRenderer":{"contents":[{"videoRenderer":{"videoId":"react123","title":{"runs":[{"text":"React Hooks in practice"}]},"ownerText":{"runs":[{"text":"Example Teacher"}]},"thumbnail":{"thumbnails":[{"url":"https://image.example/thumb.jpg"}]},"lengthText":{"simpleText":"10:00"}}}]}}};</script>`;
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
+      if (url.includes("youtube.com/results")) return { ok: true, text: async () => html };
+      return { ok: false, json: async () => ({}) };
+    }));
+
+    await expect(searchEducationalVideos("react hooks")).resolves.toMatchObject({
+      status: "ok",
+      source: "youtube",
+      results: [expect.objectContaining({ videoId: "react123" })],
     });
   });
 

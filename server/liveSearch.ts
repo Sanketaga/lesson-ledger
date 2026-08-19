@@ -1,6 +1,6 @@
 import { normalizeLearningQuery } from "../shared/learningQuery";
 
-type SearchProvider = "invidious" | "piped";
+type SearchProvider = "invidious" | "piped" | "youtube";
 
 export type LiveSearchResult = {
   videoId: string;
@@ -98,6 +98,53 @@ export function mapPipedResults(payload: unknown): LiveSearchResult[] {
     .slice(0, 8);
 }
 
+function textFromYouTubeNode(value: unknown) {
+  if (!isRecord(value)) return "";
+  const simpleText = stringValue(value.simpleText);
+  if (simpleText) return simpleText;
+  if (!Array.isArray(value.runs)) return "";
+  return value.runs.filter(isRecord).map(run => stringValue(run.text)).join("").trim();
+}
+
+function findYouTubeVideoRenderers(value: unknown, found: Record<string, unknown>[] = []) {
+  if (Array.isArray(value)) {
+    value.forEach(item => findYouTubeVideoRenderers(item, found));
+    return found;
+  }
+  if (!isRecord(value)) return found;
+  if (isRecord(value.videoRenderer)) found.push(value.videoRenderer);
+  Object.values(value).forEach(item => findYouTubeVideoRenderers(item, found));
+  return found;
+}
+
+export function mapYouTubeSearchHtml(html: string): LiveSearchResult[] {
+  const marker = "var ytInitialData = ";
+  const start = html.indexOf(marker);
+  if (start < 0) return [];
+  const end = html.indexOf(";</script>", start);
+  if (end < 0) return [];
+  try {
+    const payload = JSON.parse(html.slice(start + marker.length, end));
+    return findYouTubeVideoRenderers(payload)
+      .map(renderer => ({
+        videoId: stringValue(renderer.videoId),
+        title: textFromYouTubeNode(renderer.title),
+        channel: textFromYouTubeNode(renderer.ownerText) || textFromYouTubeNode(renderer.longBylineText) || "YouTube creator",
+        thumbnail: isRecord(renderer.thumbnail) && Array.isArray(renderer.thumbnail.thumbnails)
+          ? stringValue([...renderer.thumbnail.thumbnails].reverse().find(isRecord)?.url)
+          : "",
+        duration: textFromYouTubeNode(renderer.lengthText) || "On demand",
+        note: "Live result discovered through YouTube search.",
+        provider: "youtube" as const,
+      }))
+      .filter(item => item.videoId && item.title)
+      .filter((item, index, items) => items.findIndex(candidate => candidate.videoId === item.videoId) === index)
+      .slice(0, 8);
+  } catch {
+    return [];
+  }
+}
+
 type ProviderAttempt = {
   provider: SearchProvider;
   responded: boolean;
@@ -121,6 +168,27 @@ async function fetchJson(url: string): Promise<{ responded: boolean; payload: un
   }
 }
 
+async function fetchText(url: string): Promise<{ responded: boolean; body: string }> {
+  const abortController = new AbortController();
+  const timeout = setTimeout(() => abortController.abort(), 8_000);
+  try {
+    const response = await fetch(url, {
+      signal: abortController.signal,
+      headers: {
+        Accept: "text/html,application/xhtml+xml",
+        "Accept-Language": "en-US,en;q=0.9",
+        "User-Agent": "Mozilla/5.0 (compatible; LessonLedger/1.0; +educational-video-catalog)",
+      },
+    });
+    if (!response.ok) return { responded: false, body: "" };
+    return { responded: true, body: await response.text() };
+  } catch {
+    return { responded: false, body: "" };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function searchProvider(
   provider: SearchProvider,
   instance: string,
@@ -137,6 +205,11 @@ async function searchProvider(
   };
 }
 
+async function searchYouTube(encodedQuery: string): Promise<ProviderAttempt> {
+  const response = await fetchText(`https://www.youtube.com/results?search_query=${encodedQuery}`);
+  return { provider: "youtube", responded: response.responded, results: mapYouTubeSearchHtml(response.body) };
+}
+
 export async function searchEducationalVideos(query: string): Promise<LiveSearchResponse> {
   const normalizedQuery = normalizeLearningQuery(query) || query.trim();
   if (!normalizedQuery) return { status: "empty", source: null, results: [] };
@@ -144,6 +217,7 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
   const attempts = [
     ...PIPED_INSTANCES.map(instance => searchProvider("piped", instance, encodedQuery)),
     ...INVIDIOUS_INSTANCES.map(instance => searchProvider("invidious", instance, encodedQuery)),
+    searchYouTube(encodedQuery),
   ];
 
   // Public relays change availability frequently. Return immediately when any
