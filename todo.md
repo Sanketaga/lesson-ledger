@@ -51,3 +51,6 @@
 - [x] Add direct test coverage for the reusable Express application exported to Vercel.
 - [x] Remove server-only TypeScript path aliases from the Vercel API dependency graph and bundle-check the function entry.
 - [x] Document required Vercel environment variables, database/auth migration requirements, and the user-managed deployment steps.
+- [ ] Inspect the project repository state and choose a private GitHub repository target for the Vercel handoff.
+- [ ] Verify the Vercel-ready release files are safe to publish and commit the latest state.
+- [ ] Create and push a private GitHub repository, then provide its Vercel import handoff steps.
