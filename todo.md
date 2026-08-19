@@ -76,6 +76,6 @@
 - [x] Trace the failing LiveSearch request on the deployed Vercel site and identify the serverless or upstream cause.
 - [x] Replace the production-generic API route with explicit Vercel function paths for tRPC and OAuth so `/api/trpc/*` cannot 404.
 - [x] Implement a deployment-safe live discovery fallback and add coverage for the failure mode.
-- [ ] Validate the repaired LiveSearch on the deployed site and push the confirmed fix to GitHub main.
+- [x] Validate the repaired LiveSearch on the deployed site and push the confirmed fix to GitHub main.
 - [x] Remove the invalid Vercel function runtime override that is blocking deployment of the repaired API routes.
-- [ ] Bundle the shared Express application inside the Vercel API function directory to prevent runtime module-resolution failures.
+- [x] Bundle the shared Express application inside the Vercel API function directory to prevent runtime module-resolution failures.
