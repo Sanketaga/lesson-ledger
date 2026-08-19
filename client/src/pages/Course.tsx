@@ -4,7 +4,7 @@
  */
 import { Button } from "@/components/ui/button";
 import { filterCatalog, type CatalogVideo } from "@/lib/catalog";
-import { getPlayerFrameCrop } from "@/lib/frameCapture";
+import { isFullscreenTarget } from "@/lib/fullscreen";
 import {
   completeLesson,
   EMPTY_LEARNING_RECORD,
@@ -21,10 +21,11 @@ import {
   CheckCircle2,
   ChevronRight,
   Clock3,
-  Download,
   FastForward,
   Lightbulb,
   Loader2,
+  Maximize2,
+  Minimize2,
   NotebookPen,
   Pause,
   Play,
@@ -32,7 +33,6 @@ import {
   Sparkles,
   Timer,
   RotateCcw,
-  ScanLine,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
@@ -84,16 +84,12 @@ export default function Course() {
   const [showRecall, setShowRecall] = useState(false);
   const [autoAdvanceTarget, setAutoAdvanceTarget] = useState<number | null>(null);
   const [autoAdvanceRemaining, setAutoAdvanceRemaining] = useState(8);
-  const [snapshotStatus, setSnapshotStatus] = useState<string | null>(null);
-  const [snapshotPreviewUrl, setSnapshotPreviewUrl] = useState<string | null>(null);
-  const [isCapturingFrame, setIsCapturingFrame] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [playerSeconds, setPlayerSeconds] = useState(0);
   const [playerStatus, setPlayerStatus] = useState<string | null>(null);
   const playerFrameRef = useRef<HTMLIFrameElement>(null);
   const playerSurfaceRef = useRef<HTMLDivElement>(null);
   const playerSecondsRef = useRef(0);
-  const snapshotPreviewRef = useRef<string | null>(null);
-  const captureRequestIdRef = useRef(0);
   const canSearch = courseQuery.length >= 2;
   const liveSearch = trpc.liveSearch.search.useQuery(
     { query: canSearch ? courseQuery : "learning" },
@@ -145,108 +141,17 @@ export default function Course() {
     setPlayerStatus(seconds < 0 ? "Moved back 5 seconds." : "Moved forward 5 seconds.");
   };
 
-  const snapshotFileName = `lesson-ledger-${activeLesson?.title.replace(/[^a-z0-9]+/gi, "-").replace(/(^-|-$)/g, "").toLowerCase() || "lesson"}-frame.png`;
-
-  const downloadSnapshot = (url: string) => {
-    const download = document.createElement("a");
-    download.href = url;
-    download.download = snapshotFileName;
-    document.body.appendChild(download);
-    download.click();
-    download.remove();
-  };
-
-  const cancelSnapshotCapture = () => {
-    captureRequestIdRef.current += 1;
-    setIsCapturingFrame(false);
-    setSnapshotStatus("Snapshot cancelled. The player controls are ready to use again.");
-  };
-
-  const createSnapshot = async () => {
-    if (!activeLesson || !playerSurfaceRef.current || !navigator.mediaDevices?.getDisplayMedia) {
-      setSnapshotStatus("Actual video-frame capture is unavailable in this browser. Try a current desktop browser.");
-      return;
-    }
-    const requestId = captureRequestIdRef.current + 1;
-    captureRequestIdRef.current = requestId;
-    let stream: MediaStream | undefined;
-    let captureVideo: HTMLVideoElement | undefined;
-    let releaseFrame: (() => void) | undefined;
+  const toggleFullscreen = async () => {
+    const playerSurface = playerSurfaceRef.current;
+    if (!playerSurface) return;
     try {
-      // This call must remain in the original click gesture. Delaying it even by
-      // animation frames causes some browsers to reject the sharing request.
-      setSnapshotStatus("In the browser picker, select the Lesson Ledger tab, keep “Share tab audio” off, then choose Share.");
-      stream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: false,
-        preferCurrentTab: true,
-      } as unknown as MediaStreamConstraints);
-      if (captureRequestIdRef.current !== requestId) return;
-      setIsCapturingFrame(true);
-      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
-      const videoTrack = stream.getVideoTracks()[0];
-      if (!videoTrack) throw new Error("The browser did not provide a video track for the Snapshot.");
-      const ImageCaptureConstructor = (window as Window & typeof globalThis & {
-        ImageCapture?: new (track: MediaStreamTrack) => { grabFrame: () => Promise<ImageBitmap> };
-      }).ImageCapture;
-      let source: CanvasImageSource;
-      let sourceWidth: number;
-      let sourceHeight: number;
-      if (ImageCaptureConstructor) {
-        const imageCapture = new (ImageCaptureConstructor as unknown as new (track: MediaStreamTrack) => {
-          grabFrame: () => Promise<ImageBitmap>;
-        })(videoTrack);
-        await new Promise<void>(resolve => window.setTimeout(resolve, 100));
-        const frame = await imageCapture.grabFrame();
-        source = frame;
-        sourceWidth = frame.width;
-        sourceHeight = frame.height;
-        releaseFrame = () => frame.close();
+      if (isFullscreenTarget(playerSurface, document.fullscreenElement)) {
+        await document.exitFullscreen();
       } else {
-        captureVideo = document.createElement("video");
-        captureVideo.muted = true;
-        captureVideo.autoplay = true;
-        captureVideo.playsInline = true;
-        captureVideo.setAttribute("aria-hidden", "true");
-        captureVideo.style.cssText = "position:fixed; width:1px; height:1px; opacity:0; pointer-events:none; inset:-1px;";
-        document.body.appendChild(captureVideo);
-        captureVideo.srcObject = stream;
-        await Promise.race([
-          captureVideo.play(),
-          new Promise<never>((_, reject) => window.setTimeout(() => reject(new Error("Capture stream did not start playing.")), 4_000)),
-        ]);
-        source = captureVideo;
-        sourceWidth = captureVideo.videoWidth;
-        sourceHeight = captureVideo.videoHeight;
+        await playerSurface.requestFullscreen();
       }
-      if (captureRequestIdRef.current !== requestId) return;
-      const playerBounds = playerSurfaceRef.current.getBoundingClientRect();
-      const viewportWidth = window.visualViewport?.width || window.innerWidth;
-      const viewportHeight = window.visualViewport?.height || window.innerHeight;
-      const crop = getPlayerFrameCrop(playerBounds, { width: viewportWidth, height: viewportHeight }, { width: sourceWidth, height: sourceHeight });
-      if (!crop) throw new Error("The video player was outside the captured tab.");
-      const canvas = document.createElement("canvas");
-      canvas.width = crop.width;
-      canvas.height = crop.height;
-      canvas.getContext("2d")?.drawImage(source, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
-      const frameBlob = await new Promise<Blob | null>(resolve => canvas.toBlob(resolve, "image/png"));
-      if (!frameBlob) throw new Error("The browser could not create the video-frame image.");
-      if (captureRequestIdRef.current !== requestId) return;
-      if (snapshotPreviewRef.current) URL.revokeObjectURL(snapshotPreviewRef.current);
-      const snapshotUrl = URL.createObjectURL(frameBlob);
-      snapshotPreviewRef.current = snapshotUrl;
-      setSnapshotPreviewUrl(snapshotUrl);
-      downloadSnapshot(snapshotUrl);
-      setSnapshotStatus("Actual video-frame snapshot created and downloaded. A preview is kept below for another download.");
-    } catch (error) {
-      if (captureRequestIdRef.current !== requestId) return;
-      const name = error instanceof DOMException ? error.name : "";
-      setSnapshotStatus(name === "NotAllowedError" ? "Snapshot was not shared. Click Snapshot again, select the Lesson Ledger tab in the browser picker, and press Share." : "The actual-frame Snapshot could not be created. Click Snapshot again and share the Lesson Ledger tab in the browser picker.");
-    } finally {
-      stream?.getTracks().forEach(track => track.stop());
-      releaseFrame?.();
-      captureVideo?.remove();
-      if (captureRequestIdRef.current === requestId) setIsCapturingFrame(false);
+    } catch {
+      setPlayerStatus("Fullscreen is unavailable in this browser. Try a current desktop browser.");
     }
   };
 
@@ -260,8 +165,10 @@ export default function Course() {
     return () => window.clearInterval(timer);
   }, [isPlaying]);
 
-  useEffect(() => () => {
-    if (snapshotPreviewRef.current) URL.revokeObjectURL(snapshotPreviewRef.current);
+  useEffect(() => {
+    const syncFullscreenState = () => setIsFullscreen(isFullscreenTarget(playerSurfaceRef.current, document.fullscreenElement));
+    document.addEventListener("fullscreenchange", syncFullscreenState);
+    return () => document.removeEventListener("fullscreenchange", syncFullscreenState);
   }, []);
 
   useEffect(() => {
@@ -424,16 +331,16 @@ export default function Course() {
           <section className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.4fr)_minmax(340px,0.6fr)] xl:gap-10">
             <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
               <div className="overflow-hidden border border-[#2A2B29] bg-[#171817] shadow-[0_18px_38px_rgba(27,29,28,0.16)]">
-                <div ref={playerSurfaceRef} className="relative aspect-video overflow-hidden bg-black">
+                <div ref={playerSurfaceRef} className="relative aspect-video overflow-hidden bg-black [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:aspect-auto">
                   <iframe ref={playerFrameRef} className="pointer-events-none h-full w-full" src={`${activeLesson.embedUrl}&modestbranding=1&controls=0&disablekb=1&fs=0&playsinline=1&enablejsapi=1&autoplay=${isPlaying ? "1" : "0"}`} title="Embedded lesson media" tabIndex={-1} aria-hidden="true" inert sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" />
-                  {!isCapturingFrame && (!isPlaying ? <button type="button" onClick={() => setPlayerPlayback(true)} className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 text-white transition hover:bg-black/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-6px] focus-visible:outline-white"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-[#232421] shadow-lg"><Play className="ml-0.5 h-5 w-5 fill-current" /></span><span className="mt-4 text-sm font-semibold">Play lesson here</span><span className="mt-1 text-xs text-white/68">The course player keeps you inside Lesson Ledger.</span></button> : <div className="absolute inset-0 z-20" aria-label="Lesson playing in Lesson Ledger" />)}
-                  {!isCapturingFrame && <div className="absolute right-3 top-3 z-40 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2">
+                  {!isPlaying ? <button type="button" onClick={() => setPlayerPlayback(true)} className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 text-white transition hover:bg-black/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-6px] focus-visible:outline-white"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-[#232421] shadow-lg"><Play className="ml-0.5 h-5 w-5 fill-current" /></span><span className="mt-4 text-sm font-semibold">Play lesson here</span><span className="mt-1 text-xs text-white/68">The course player keeps you inside Lesson Ledger.</span></button> : <div className="absolute inset-0 z-20" aria-label="Lesson playing in Lesson Ledger" />}
+                  <div className="absolute right-3 top-3 z-40 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2">
                     <button type="button" onClick={() => seekBy(-5)} className="inline-flex h-9 items-center gap-1 bg-white px-2.5 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#ECEDEA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Go back 5 seconds" title="Go back 5 seconds"><RotateCcw className="h-3.5 w-3.5" />5s</button>
                     <button type="button" onClick={togglePlayback} className="inline-flex h-9 items-center gap-1.5 bg-white px-3 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#ECEDEA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={isPlaying ? "Pause lesson" : "Play lesson"}>{isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}{isPlaying ? "Pause" : "Play"}<kbd className="ml-1 border border-[#D5D7D4] px-1 py-0.5 text-[9px] text-[#6E716D]">Ctrl</kbd></button>
                     <button type="button" onClick={() => seekBy(5)} className="inline-flex h-9 items-center gap-1 bg-white px-2.5 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#ECEDEA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Go forward 5 seconds" title="Go forward 5 seconds">5s<FastForward className="h-3.5 w-3.5" /></button>
-                    <button type="button" onClick={() => void createSnapshot()} className="inline-flex h-9 items-center gap-1.5 bg-[#252624] px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-[#50534F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"><ScanLine className="h-3.5 w-3.5" />Snapshot</button>
-                  </div>}
-                  {!isCapturingFrame && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex h-10 items-center justify-between bg-[#171817] px-4 text-[10px] font-medium tracking-[0.08em] text-white/58"><span>Lesson Ledger player</span><span>External navigation disabled</span></div>}
+                    <button type="button" onClick={() => void toggleFullscreen()} className="inline-flex h-9 items-center gap-1.5 bg-[#252624] px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-[#50534F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>{isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}{isFullscreen ? "Exit" : "Fullscreen"}</button>
+                  </div>
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex h-10 items-center justify-between bg-[#171817] px-4 text-[10px] font-medium tracking-[0.08em] text-white/58"><span>Lesson Ledger player</span><span>External navigation disabled</span></div>
                 </div>
                 <div className="flex flex-col gap-4 border-t border-white/10 px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
                   <div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/48">Lesson {String(activeIndex + 1).padStart(2, "0")} of {String(courseLessons.length).padStart(2, "0")}</p><h2 className="mt-1 font-display text-2xl leading-none tracking-[-0.02em]">{activeLesson.title}</h2></div>
@@ -442,8 +349,6 @@ export default function Course() {
               </div>
 
               {playerStatus && <p aria-live="polite" className="mt-4 border border-[#C7CCD1] bg-white px-4 py-3 text-sm leading-6 text-[#575B60]">{playerStatus}</p>}
-              {snapshotStatus && <div aria-live="polite" className="mt-4 flex flex-col gap-3 border border-[#C7CCD1] bg-white px-4 py-3 text-sm leading-6 text-[#575B60] sm:flex-row sm:items-center sm:justify-between"><p>{snapshotStatus}</p>{isCapturingFrame && <Button type="button" variant="outline" onClick={cancelSnapshotCapture} className="h-8 shrink-0 border-[#BFC3C7] bg-white px-3 text-xs text-[#292A28] hover:bg-[#F0F1F2]">Cancel capture</Button>}</div>}
-              {snapshotPreviewUrl && <div className="mt-4 border border-[#C7CCD1] bg-white p-3 sm:p-4"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#83878D]">Actual video-frame snapshot</p><p className="mt-1 text-sm text-[#575B60]">Cropped from the visible player after you select the current tab.</p></div><Button type="button" onClick={() => downloadSnapshot(snapshotPreviewUrl)} variant="outline" className="h-9 border-[#BFC3C7] bg-white px-3 text-xs text-[#292A28] hover:bg-[#F0F1F2]"><Download className="mr-1.5 h-3.5 w-3.5" />Download again</Button></div><img src={snapshotPreviewUrl} alt="Actual visible video frame from the focused player" className="mt-3 max-h-64 w-full border border-[#E0E2E4] object-contain" /></div>}
               {autoAdvanceTarget !== null && <div className="mt-4 flex items-center justify-between gap-4 border border-[#C7CCD1] bg-white px-4 py-3 text-sm"><span className="flex items-center gap-2"><Timer className="h-4 w-4" /> Next lesson begins in {autoAdvanceRemaining}s.</span><button type="button" onClick={() => setAutoAdvanceTarget(null)} className="font-semibold text-[#3F4348] hover:text-black">Pause</button></div>}
 
               <div className="mt-5 flex items-start gap-3 border-l-2 border-[#2B2D2A] pl-4 text-sm leading-6 text-[#666A6D]"><Play className="mt-1 h-3.5 w-3.5 shrink-0 text-[#2B2D2A]" /><p>Mark a lesson complete when you are ready. With auto-advance on, the next lesson opens after a short pause; beginning a reflection pauses the move.</p></div>

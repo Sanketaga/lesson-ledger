@@ -41,3 +41,6 @@
 - [x] Validate the repaired immediate-click Snapshot flow through a real current-tab share, including preview and repeat download, on a shareable site view.
 - [x] Restore player controls if a browser share prompt stalls or is cancelled.
 - [x] Add unit coverage for player-frame crop bounds used by actual Snapshot capture.
+- [x] Remove all Snapshot capture controls, status, preview, helper code, and capture-specific tests from the focused course.
+- [x] Add a course-owned fullscreen / exit-fullscreen control for the focused video player.
+- [x] Validate fullscreen entry and exit, keyboard/player controls, mobile layout, tests, and production build.
