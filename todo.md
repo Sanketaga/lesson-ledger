@@ -46,3 +46,8 @@
 - [x] Validate fullscreen entry and exit, keyboard/player controls, mobile layout, tests, and production build.
 - [x] Re-run final production verification for the release checkpoint.
 - [x] Provide deployment guidance, including the built-in publishing path and Vercel compatibility considerations.
+- [x] Assess the current Express/tRPC and authentication architecture for a Vercel serverless deployment.
+- [x] Add and validate Vercel-compatible build, routing, and server entry configuration.
+- [x] Add direct test coverage for the reusable Express application exported to Vercel.
+- [x] Remove server-only TypeScript path aliases from the Vercel API dependency graph and bundle-check the function entry.
+- [x] Document required Vercel environment variables, database/auth migration requirements, and the user-managed deployment steps.

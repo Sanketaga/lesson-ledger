@@ -102,6 +102,10 @@ The student now requires the actual video image currently visible in the player 
 
 The native share request is made immediately in the Snapshot button’s click gesture. Waiting for a render or animation frame before asking for the browser picker causes some browsers to cancel the request. Once the student selects the **Lesson Ledger** tab and presses **Share**, the player’s own course chrome is hidden only long enough for the frame crop. Tab audio is unnecessary for an image capture.
 
+## External Vercel Release
+
+The Vercel release structure separates static browser assets from dynamic API routes. The Vite build writes the course application to `dist/public`, while a catch-all `/api/*` Vercel Node Function imports the same Express app used in local development. This retains same-origin tRPC and OAuth paths without exposing a fixed listening port. Platform-managed OAuth, database, and Forge credentials still require externally valid replacements before a Vercel release can authenticate users or access platform-specific storage services.
+
 Browser validation confirms that clicking **Snapshot** immediately generated a local preview, downloaded the image, and displayed the success message without opening any tab-sharing permission picker. The preview and repeat-download action remain inside the focused course.
 
 The repaired capture completed successfully: the player reported “Screenshot ready and downloaded,” displayed an in-page preview, and exposed a **Download again** action. The visible rewind control also returned “Moved back 5 seconds,” confirming both five-second directions now respond within the focused course.
