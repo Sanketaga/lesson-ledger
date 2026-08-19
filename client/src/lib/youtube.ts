@@ -106,6 +106,13 @@ export function getFocusedPlayerGuard(allowNativeStart: boolean) {
   };
 }
 
+export function formatPlayerElapsedTime(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const minutes = Math.floor(safeSeconds / 60);
+  const remainder = safeSeconds % 60;
+  return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
 export function loadYouTubeIframeApi(): Promise<YouTubeNamespace> {
   if (typeof window === "undefined") return Promise.reject(new Error("The YouTube player is only available in a browser."));
   if (window.YT?.Player) return Promise.resolve(window.YT);

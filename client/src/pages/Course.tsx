@@ -8,6 +8,7 @@ import { isFullscreenTarget } from "@/lib/fullscreen";
 import {
   createManagedPlayerVars,
   describeYouTubePlayerError,
+  formatPlayerElapsedTime,
   getFocusedPlayerGuard,
   getManagedPlaybackViewState,
   getYouTubeEmbedHost,
@@ -477,7 +478,7 @@ export default function Course() {
                     <button type="button" onClick={() => void toggleFullscreen()} className="inline-flex h-9 items-center gap-1.5 bg-[#252624] px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-[#3A3B3A]"><Maximize2 className="h-3.5 w-3.5" /></button>
                   </div>
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex h-10 items-center justify-between bg-[#171817] px-4 text-[10px] font-medium tracking-[0.08em] text-white/70">
-                    <div>Lesson player</div>
+                    <div>Lesson player · {formatPlayerElapsedTime(playerSeconds)}</div>
                     <div>{playerStatus}</div>
                   </div>
                 </div>

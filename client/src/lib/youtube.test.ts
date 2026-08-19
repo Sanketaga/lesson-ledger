@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   createManagedPlayerVars,
   describeYouTubePlayerError,
+  formatPlayerElapsedTime,
   getFocusedPlayerGuard,
   getManagedPlaybackViewState,
   getYouTubeEmbedHost,
@@ -44,5 +45,10 @@ describe("managed YouTube player setup", () => {
   it("keeps the course surface guarded until the explicit native-start fallback is needed", () => {
     expect(getFocusedPlayerGuard(false)).toEqual({ allowIframePointerEvents: false, showOwnedPlayOverlay: true, preserveCourseControlGuard: true });
     expect(getFocusedPlayerGuard(true)).toEqual({ allowIframePointerEvents: true, showOwnedPlayOverlay: false, preserveCourseControlGuard: true });
+  });
+
+  it("formats the current managed-player position for focused-course playback feedback", () => {
+    expect(formatPlayerElapsedTime(0)).toBe("0:00");
+    expect(formatPlayerElapsedTime(65.8)).toBe("1:05");
   });
 });
