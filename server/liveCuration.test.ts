@@ -114,6 +114,24 @@ describe("learning-intent course curation", () => {
     expect(cooking.map(item => item.learningStage)).toEqual(["Foundations", "Getting started", "Structured skills", "Applied practice"]);
   });
 
+  it("prevents academic and practical courses from collapsing into a stack of introductory lessons", () => {
+    const curated = curateLearningResults([
+      result("foundation-one", "Calculus introduction and fundamentals"),
+      result("foundation-two", "What is calculus? An overview"),
+      result("foundation-three", "Calculus introduction for students"),
+      result("beginner-one", "Calculus basics for beginners"),
+      result("beginner-two", "Calculus first lesson"),
+      result("beginner-three", "Calculus getting started guide"),
+      result("core", "Calculus concepts and methods explained"),
+      result("skills", "Calculus derivative techniques and skills"),
+      result("practice", "Calculus practice problems walkthrough"),
+    ], buildLearningIntent("Calculus"));
+
+    expect(curated.map(item => item.learningStage)).toEqual([
+      "Foundations", "Foundations", "Getting started", "Getting started", "Core concepts", "Structured skills", "Applied practice",
+    ]);
+  });
+
   it("searches Hindi as a language-learning request and never uses provider songs or headlines to fill the course", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("api.piped.private.coffee")) {

@@ -139,15 +139,18 @@ export function curateLearningResults(results: LiveSearchResult[], intent: Learn
     .map((result, providerIndex) => ({ result, providerIndex, stage: curriculumStage(result), score: educationalScore(result, intent) }))
     .sort((left, right) => left.stage - right.stage || right.score - left.score || left.providerIndex - right.providerIndex);
   const seenTeachingFingerprints = new Set<string>();
+  const lessonsPerStage = new Map<number, number>();
   let completeCourseSeen = false;
 
   return rankedResults
     .filter(item => {
       const fingerprint = canonicalTeachingFingerprint(item.result.title);
       if (!fingerprint || seenTeachingFingerprints.has(fingerprint)) return false;
+      if ((lessonsPerStage.get(item.stage) ?? 0) >= 2) return false;
       const isCompleteCourse = COMPLETE_COURSE_TERMS.test(item.result.title);
       if (isCompleteCourse && completeCourseSeen) return false;
       seenTeachingFingerprints.add(fingerprint);
+      lessonsPerStage.set(item.stage, (lessonsPerStage.get(item.stage) ?? 0) + 1);
       if (isCompleteCourse) completeCourseSeen = true;
       return true;
     })

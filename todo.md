@@ -101,6 +101,9 @@
 - [ ] Test representative technical, academic, practical, and language learning topics for coherent course assembly.
 - [ ] Publish and verify the topic-agnostic learning-course curation flow on the deployed site.
 - [ ] Test deployed course assembly for at least one academic topic and one practical skill topic, confirming staged instructional results.
-- [ ] Add regression coverage for representative academic and practical topics to verify stage-specific discovery and filtering.
+- [x] Add regression coverage for representative academic and practical topics to verify stage-specific discovery and filtering.
 - [ ] Refine stage labeling or selection if non-language production courses fail to show a meaningful foundations-to-practice progression.
-- [ ] Exclude first-person study advice and language-learning detours from practical-subject course results.
+- [x] Exclude first-person study advice and language-learning detours from practical-subject course results.
+- [ ] Balance non-language stage selection so academic and practical courses include foundations, beginner setup, core concepts or skills, and applied practice when teaching-quality candidates exist.
+- [ ] Re-verify a balanced academic course and practical course in production after the stage-selection refinement.
+- [ ] Add regression cases that reject academic or practical course results collapsing into mostly introductory lessons or omitting later stages.
