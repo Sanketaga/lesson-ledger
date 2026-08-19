@@ -92,3 +92,4 @@
 - [x] Define and agree on learning-intent filtering, curricular progression, and course quality criteria.
 - [x] Implement and test topic-aware educational ranking and ordered course assembly for representative searches such as Hindi.
 - [ ] Publish and verify the improved live-curation flow on the deployed site.
+- [ ] Remove non-lesson learning advice and improve beginner-stage classification in the deployed Hindi course sequence.

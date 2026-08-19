@@ -32,6 +32,7 @@ describe("learning-intent course curation", () => {
     const curated = curateLearningResults([
       result("song", "Best Hindi love songs 2026"),
       result("news", "Hindi news headlines live"),
+      result("advice", "How to learn Hindi faster than I did"),
       result("conversation", "Hindi conversation practice for beginners"),
       result("grammar", "Hindi grammar: build simple sentences"),
       result("alphabet", "Learn the Hindi alphabet and pronunciation"),
@@ -43,6 +44,7 @@ describe("learning-intent course curation", () => {
     expect(curated.map(item => item.videoId)).toEqual(["alphabet", "overview-1", "vocabulary", "grammar", "conversation"]);
     expect(curated.find(item => item.videoId === "alphabet")).toMatchObject({ learningStage: "Foundations" });
     expect(curated).not.toEqual(expect.arrayContaining([expect.objectContaining({ videoId: "overview-2" })]));
+    expect(curated).not.toEqual(expect.arrayContaining([expect.objectContaining({ videoId: "advice" })]));
   });
 
   it("searches Hindi as a language-learning request and never uses provider songs or headlines to fill the course", async () => {

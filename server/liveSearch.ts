@@ -21,14 +21,13 @@ const LANGUAGE_TOPICS: Record<string, string> = {
 
 const EXPLICIT_MEDIA_TERMS = /\b(?:news|khabar|headlines|music|song|songs|gana|movie|movies|film|films|bollywood|trailer)\b/i;
 const NON_INSTRUCTIONAL_TERMS = /\b(?:news|khabar|headlines|breaking|live news|song|songs|gana|music video|romantic|love songs|bollywood|movie|full movie|film|trailer|episode|serial|remix|playlist|reaction)\b/i;
+const NON_COURSE_ADVICE_TERMS = /\b(?:how to learn .* faster|tips(?: for learning)?|review|my journey|my experience|why i (?:learned|moved))\b/i;
 const INSTRUCTIONAL_TERMS = /\b(?:learn|learning|lesson|lessons|tutorial|course|beginner|beginners|basics|basic|introduction|intro|from scratch|alphabet|script|letters|pronunciation|vocabulary|words|phrases|grammar|verbs|sentence|conversation|speaking|writing|practice|explained|guide)\b/i;
-const CURRICULUM_STAGES = [
-  /\b(?:alphabet|script|letters|pronunciation|sounds)\b/i,
-  /\b(?:introduction|intro|beginner|basics|basic|first lesson|from scratch)\b/i,
-  /\b(?:vocabulary|words|phrases)\b/i,
-  /\b(?:grammar|verbs|sentence|reading|writing)\b/i,
-  /\b(?:conversation|speaking|practice|fluency)\b/i,
-];
+const FOUNDATION_STAGE = /\b(?:alphabet|script|letters|pronunciation|sounds)\b/i;
+const BEGINNER_STAGE = /\b(?:introduction|intro|beginner(?:s)?|basics|basic|first lesson|lesson\s*(?:1|one)|from scratch)\b/i;
+const VOCABULARY_STAGE = /\b(?:vocabulary|words|phrases)\b/i;
+const GRAMMAR_STAGE = /\b(?:grammar|verbs|sentence|reading|writing)\b/i;
+const CONVERSATION_STAGE = /\b(?:conversation|speaking|practice|fluency)\b/i;
 
 /** Converts a broad topic into a provider query that expresses the learner's educational goal. */
 export function buildLearningIntent(query: string): LearningIntent {
@@ -74,8 +73,12 @@ export type LiveSearchResponse = {
 
 function curriculumStage(result: LiveSearchResult) {
   const text = `${result.title} ${result.note}`;
-  const stage = CURRICULUM_STAGES.findIndex(pattern => pattern.test(text));
-  return stage < 0 ? CURRICULUM_STAGES.length : stage;
+  if (FOUNDATION_STAGE.test(text)) return 0;
+  if (VOCABULARY_STAGE.test(text)) return 2;
+  if (GRAMMAR_STAGE.test(text)) return 3;
+  if (CONVERSATION_STAGE.test(text)) return 4;
+  if (BEGINNER_STAGE.test(text)) return 1;
+  return 5;
 }
 
 const CURRICULUM_STAGE_LABELS = [
@@ -106,7 +109,7 @@ export function curateLearningResults(results: LiveSearchResult[], intent: Learn
   const focusedResults = intent.enforceEducationalFocus
     ? uniqueResults.filter(result => {
       const text = `${result.title} ${result.note} ${result.channel}`;
-      return INSTRUCTIONAL_TERMS.test(text) && !NON_INSTRUCTIONAL_TERMS.test(text);
+      return INSTRUCTIONAL_TERMS.test(text) && !NON_INSTRUCTIONAL_TERMS.test(text) && !NON_COURSE_ADVICE_TERMS.test(text);
     })
     : uniqueResults;
 
