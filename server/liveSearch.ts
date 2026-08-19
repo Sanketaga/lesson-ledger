@@ -21,7 +21,8 @@ const LANGUAGE_TOPICS: Record<string, string> = {
 
 const EXPLICIT_MEDIA_TERMS = /\b(?:news|khabar|headlines|music|song|songs|gana|movie|movies|film|films|bollywood|trailer)\b/i;
 const NON_INSTRUCTIONAL_TERMS = /\b(?:news|khabar|headlines|breaking|live news|song|songs|gana|music video|romantic|love songs|bollywood|movie|full movie|film|trailer|episode|serial|remix|playlist|reaction)\b/i;
-const NON_COURSE_ADVICE_TERMS = /\b(?:how (?:to|i|we|you) (?:would |should |can )?learn .*?(?:faster|fast)|tips(?: for learning)?|review|my journey|my experience|why i (?:learned|moved))\b/i;
+const NON_COURSE_ADVICE_TERMS = /\b(?:how (?:i|we) would learn(?: to)? .*|how (?:to|you) (?:should |can )?learn .*?(?:faster|fast)|tips(?: for learning)?|review|my journey|my experience|why i (?:learned|moved))\b/i;
+const LANGUAGE_LEARNING_DETOUR_TERMS = /\b(?:english speaking|english vocabulary|learn .* in english|how to .* in english|in english.* vocabulary)\b/i;
 const COMPLETE_COURSE_TERMS = /\b(?:full course|all (?:the )?basics|\b(?:learn|learned)\b.*?\bin\s+\d+\s+(?:minutes?|hours?)|\d+\s+beginner lessons)\b/i;
 const INSTRUCTIONAL_TERMS = /\b(?:learn|learning|lesson|lessons|tutorial|course|beginner|beginners|basics|basic|introduction|intro|overview|what is|from scratch|fundamentals|concepts|how to|walkthrough|guide|recipe|project|exercise|setup|installation|alphabet|script|letters|pronunciation|vocabulary|words|phrases|grammar|verbs|sentence|conversation|speaking|writing|practice|explained)\b/i;
 const FOUNDATION_STAGE = /\b(?:what is|overview|introduction|intro|fundamentals|foundations?|alphabet|script|letters|pronunciation|sounds)\b/i;
@@ -119,13 +120,18 @@ function isSubstantiveLesson(result: LiveSearchResult) {
   return seconds === null || seconds >= 180;
 }
 
+function isLanguageLearningDetour(result: LiveSearchResult, intent: LearningIntent) {
+  if (LANGUAGE_TOPICS[intent.topic]) return false;
+  return LANGUAGE_LEARNING_DETOUR_TERMS.test(`${result.title} ${result.note} ${result.channel}`);
+}
+
 /** Filters generic-provider results to teaching material and orders remaining lessons from foundations to practice. */
 export function curateLearningResults(results: LiveSearchResult[], intent: LearningIntent) {
   const uniqueResults = results.filter((result, index) => results.findIndex(candidate => candidate.videoId === result.videoId) === index);
   const focusedResults = intent.enforceEducationalFocus
     ? uniqueResults.filter(result => {
       const text = `${result.title} ${result.note} ${result.channel}`;
-      return isSubstantiveLesson(result) && INSTRUCTIONAL_TERMS.test(text) && !NON_INSTRUCTIONAL_TERMS.test(text) && !NON_COURSE_ADVICE_TERMS.test(text);
+      return isSubstantiveLesson(result) && INSTRUCTIONAL_TERMS.test(text) && !NON_INSTRUCTIONAL_TERMS.test(text) && !NON_COURSE_ADVICE_TERMS.test(text) && !isLanguageLearningDetour(result, intent);
     })
     : uniqueResults;
 

@@ -88,6 +88,14 @@ describe("learning-intent course curation", () => {
     expect(curateLearningResults([short, lesson, unknownDuration], buildLearningIntent("Python")).map(item => item.videoId)).toEqual(["unknown", "lesson"]);
   });
 
+  it("removes first-person advice and English-learning detours from a practical subject course", () => {
+    const cookingLesson = result("lesson", "Cooking basics: knife skills tutorial");
+    const advice = result("advice", "How I would learn to cook if I could start over");
+    const languageDetour = result("english", "How to Cook in English: Cooking Vocabulary");
+
+    expect(curateLearningResults([advice, languageDetour, cookingLesson], buildLearningIntent("Cooking")).map(item => item.videoId)).toEqual(["lesson"]);
+  });
+
   it("searches Hindi as a language-learning request and never uses provider songs or headlines to fill the course", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("api.piped.private.coffee")) {

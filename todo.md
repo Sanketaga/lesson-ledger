@@ -93,10 +93,14 @@
 - [x] Implement and test topic-aware educational ranking and ordered course assembly for representative searches such as Hindi.
 - [x] Publish and verify the improved live-curation flow on the deployed site.
 - [x] Remove non-lesson learning advice and improve beginner-stage classification in the deployed Hindi course sequence.
-- [ ] Generalize educational intent expansion, media exclusion, and lesson sequencing beyond language topics.
-- [ ] Remove redundant full-course tracks and first-person learning advice from generalized topic courses.
-- [ ] Replace one-shot broad retrieval with topic-agnostic stage-specific discovery so arbitrary subjects can form complete foundations-to-practice courses.
-- [ ] Classify plural project/tutorial lessons as applied work and deduplicate extended complete-course title variants across source results.
-- [ ] Exclude ultra-short discovery clips so generalized courses contain substantive lessons rather than shorts or teasers.
+- [x] Generalize educational intent expansion, media exclusion, and lesson sequencing beyond language topics.
+- [x] Remove redundant full-course tracks and first-person learning advice from generalized topic courses.
+- [x] Replace one-shot broad retrieval with topic-agnostic stage-specific discovery so arbitrary subjects can form complete foundations-to-practice courses.
+- [x] Classify plural project/tutorial lessons as applied work and deduplicate extended complete-course title variants across source results.
+- [x] Exclude ultra-short discovery clips so generalized courses contain substantive lessons rather than shorts or teasers.
 - [ ] Test representative technical, academic, practical, and language learning topics for coherent course assembly.
 - [ ] Publish and verify the topic-agnostic learning-course curation flow on the deployed site.
+- [ ] Test deployed course assembly for at least one academic topic and one practical skill topic, confirming staged instructional results.
+- [ ] Add regression coverage for representative academic and practical topics to verify stage-specific discovery and filtering.
+- [ ] Refine stage labeling or selection if non-language production courses fail to show a meaningful foundations-to-practice progression.
+- [ ] Exclude first-person study advice and language-learning detours from practical-subject course results.
