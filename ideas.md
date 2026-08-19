@@ -92,6 +92,12 @@ The revised focused player now displays course-owned **5s back**, **Play/Pause**
 
 The repaired Screenshot action now enters a clear pending state labelled “Capturing” and explains that the current Lesson Ledger tab must be selected. The native browser picker is awaiting that final tab selection to create the preview and downloadable image.
 
+## Reliable Course Snapshot
+
+The screen-sharing requirement is intentionally removed. The new Snapshot action creates a one-click, local SVG study card containing the course title, active lesson, source, lesson position, and Lesson Ledger course timer. It is not presented as a pixel-perfect copy of a third-party video frame; instead, it is a dependable course-owned reference image that works even when embedded media is cross-origin or the provider blocks playback.
+
+Browser validation confirms that clicking **Snapshot** immediately generated a local preview, downloaded the image, and displayed the success message without opening any tab-sharing permission picker. The preview and repeat-download action remain inside the focused course.
+
 The repaired capture completed successfully: the player reported “Screenshot ready and downloaded,” displayed an in-page preview, and exposed a **Download again** action. The visible rewind control also returned “Moved back 5 seconds,” confirming both five-second directions now respond within the focused course.
 
 ### Validation Observation

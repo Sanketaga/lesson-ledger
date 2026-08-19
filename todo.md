@@ -31,3 +31,6 @@
 - [x] Diagnose and repair the student screenshot action so its capture and download path is dependable.
 - [x] Add visible five-second rewind and five-second forward controls to the focused player.
 - [x] Validate screenshot capture, Play/Pause, rewind, forward, keyboard behavior, and responsive controls; save the updated checkpoint.
+- [x] Define the course-owned snapshot scope and remove the browser-sharing dependency from the student workflow.
+- [x] Replace Screenshot with a one-click Snapshot action that creates a timestamped lesson card and local download.
+- [x] Validate one-click snapshot creation, download, and responsive controls; save the updated checkpoint.
