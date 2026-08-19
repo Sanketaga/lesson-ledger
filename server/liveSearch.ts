@@ -54,21 +54,21 @@ export function formatDuration(totalSeconds: number) {
 function thumbnailFromInvidious(value: unknown) {
   if (!Array.isArray(value)) return "";
   const largest = [...value].reverse().find(isRecord);
-  return largest ? stringValue(largest.url) : "";
+  return largest ? stringValue((largest as any).url) : "";
 }
 
 export function mapInvidiousResults(payload: unknown): LiveSearchResult[] {
   if (!Array.isArray(payload)) return [];
   return payload
     .filter(isRecord)
-    .filter(item => stringValue(item.type) === "video")
+    .filter(item => stringValue((item as any).type) === "video")
     .map(item => ({
-      videoId: stringValue(item.videoId),
-      title: stringValue(item.title),
-      channel: stringValue(item.author),
-      thumbnail: thumbnailFromInvidious(item.videoThumbnails),
-      duration: formatDuration(typeof item.lengthSeconds === "number" ? item.lengthSeconds : 0),
-      note: stringValue(item.description).replace(/\s+/g, " ").trim().slice(0, 180) || "Live result discovered through the optional provider.",
+      videoId: stringValue((item as any).videoId),
+      title: stringValue((item as any).title),
+      channel: stringValue((item as any).author),
+      thumbnail: thumbnailFromInvidious((item as any).videoThumbnails),
+      duration: formatDuration(typeof (item as any).lengthSeconds === "number" ? (item as any).lengthSeconds : 0),
+      note: stringValue((item as any).description).replace(/\s+/g, " ").trim().slice(0, 180) || "Live result discovered through the optional provider.",
       provider: "invidious" as const,
     }))
     .filter(item => item.videoId && item.title)
@@ -81,17 +81,17 @@ function videoIdFromPipedUrl(value: string) {
 }
 
 export function mapPipedResults(payload: unknown): LiveSearchResult[] {
-  if (!isRecord(payload) || !Array.isArray(payload.items)) return [];
-  return payload.items
+  if (!isRecord(payload) || !Array.isArray((payload as any).items)) return [];
+  return (payload as any).items
     .filter(isRecord)
-    .filter(item => stringValue(item.type) === "stream")
+    .filter(item => stringValue((item as any).type) === "stream")
     .map(item => ({
-      videoId: videoIdFromPipedUrl(stringValue(item.url)),
-      title: stringValue(item.title),
-      channel: stringValue(item.uploaderName),
-      thumbnail: stringValue(item.thumbnail),
-      duration: stringValue(item.duration) || "On demand",
-      note: stringValue(item.shortDescription).replace(/\s+/g, " ").trim().slice(0, 180) || "Live result discovered through the optional provider.",
+      videoId: videoIdFromPipedUrl(stringValue((item as any).url)),
+      title: stringValue((item as any).title),
+      channel: stringValue((item as any).uploaderName),
+      thumbnail: stringValue((item as any).thumbnail),
+      duration: stringValue((item as any).duration) || "On demand",
+      note: stringValue((item as any).shortDescription).replace(/\s+/g, " ").trim().slice(0, 180) || "Live result discovered through the optional provider.",
       provider: "piped" as const,
     }))
     .filter(item => item.videoId && item.title)
@@ -100,10 +100,10 @@ export function mapPipedResults(payload: unknown): LiveSearchResult[] {
 
 function textFromYouTubeNode(value: unknown) {
   if (!isRecord(value)) return "";
-  const simpleText = stringValue(value.simpleText);
+  const simpleText = stringValue((value as any).simpleText);
   if (simpleText) return simpleText;
-  if (!Array.isArray(value.runs)) return "";
-  return value.runs.filter(isRecord).map(run => stringValue(run.text)).join("").trim();
+  if (!Array.isArray((value as any).runs)) return "";
+  return ((value as any).runs as unknown[]).filter(isRecord).map(run => stringValue((run as any).text)).join("").trim();
 }
 
 function findYouTubeVideoRenderers(value: unknown, found: Record<string, unknown>[] = []) {
@@ -112,7 +112,7 @@ function findYouTubeVideoRenderers(value: unknown, found: Record<string, unknown
     return found;
   }
   if (!isRecord(value)) return found;
-  if (isRecord(value.videoRenderer)) found.push(value.videoRenderer);
+  if (isRecord((value as any).videoRenderer)) found.push((value as any).videoRenderer);
   Object.values(value).forEach(item => findYouTubeVideoRenderers(item, found));
   return found;
 }
@@ -127,13 +127,13 @@ export function mapYouTubeSearchHtml(html: string): LiveSearchResult[] {
     const payload = JSON.parse(html.slice(start + marker.length, end));
     return findYouTubeVideoRenderers(payload)
       .map(renderer => ({
-        videoId: stringValue(renderer.videoId),
-        title: textFromYouTubeNode(renderer.title),
-        channel: textFromYouTubeNode(renderer.ownerText) || textFromYouTubeNode(renderer.longBylineText) || "YouTube creator",
-        thumbnail: isRecord(renderer.thumbnail) && Array.isArray(renderer.thumbnail.thumbnails)
-          ? stringValue([...renderer.thumbnail.thumbnails].reverse().find(isRecord)?.url)
+        videoId: stringValue((renderer as any).videoId),
+        title: textFromYouTubeNode((renderer as any).title),
+        channel: textFromYouTubeNode((renderer as any).ownerText) || textFromYouTubeNode((renderer as any).longBylineText) || "YouTube creator",
+        thumbnail: isRecord((renderer as any).thumbnail) && Array.isArray((renderer as any).thumbnail.thumbnails)
+          ? stringValue([...(renderer as any).thumbnail.thumbnails].reverse().find(isRecord)?.url)
           : "",
-        duration: textFromYouTubeNode(renderer.lengthText) || "On demand",
+        duration: textFromYouTubeNode((renderer as any).lengthText) || "On demand",
         note: "Live result discovered through YouTube search.",
         provider: "youtube" as const,
       }))
@@ -210,19 +210,87 @@ async function searchYouTube(encodedQuery: string): Promise<ProviderAttempt> {
   return { provider: "youtube", responded: response.responded, results: mapYouTubeSearchHtml(response.body) };
 }
 
+// --- New: optional YouTube Data API lookup (more reliable when an API key is configured)
+function parseISODurationToSeconds(duration = "") {
+  // Example: PT1H2M3S or PT15M33S or PT45S
+  const match = duration.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!match) return 0;
+  const hours = Number(match[1] || 0);
+  const minutes = Number(match[2] || 0);
+  const seconds = Number(match[3] || 0);
+  return hours * 3600 + minutes * 60 + seconds;
+}
+
+async function searchYouTubeDataApi(encodedQuery: string): Promise<ProviderAttempt> {
+  const key = process.env.YOUTUBE_API_KEY || process.env.YT_API_KEY || "";
+  if (!key) return { provider: "youtube", responded: false, results: [] };
+
+  // Search for videos (returns snippets with videoId)
+  const searchUrl = `https://www.googleapis.com/youtube/v3/search?part=snippet&type=video&maxResults=8&q=${encodedQuery}&key=${key}`;
+  const searchResp = await fetchJson(searchUrl);
+  if (!searchResp.responded || !isRecord(searchResp.payload) || !Array.isArray((searchResp.payload as any).items)) {
+    return { provider: "youtube", responded: false, results: [] };
+  }
+
+  const items = (searchResp.payload as any).items as any[];
+  const ids = items.map(i => i.id?.videoId).filter(Boolean);
+  // Attempt to fetch durations via the Videos API
+  let durationsMap: Record<string, string> = {};
+  if (ids.length > 0) {
+    const videosUrl = `https://www.googleapis.com/youtube/v3/videos?part=contentDetails&id=${ids.join(",")}&key=${key}`;
+    const videosResp = await fetchJson(videosUrl);
+    if (videosResp.responded && isRecord(videosResp.payload) && Array.isArray((videosResp.payload as any).items)) {
+      ((videosResp.payload as any).items as any[]).forEach(item => {
+        const id = item.id;
+        const dur = item.contentDetails?.duration;
+        durationsMap[id] = dur ? formatDuration(parseISODurationToSeconds(dur)) : "On demand";
+      });
+    }
+  }
+
+  const results: LiveSearchResult[] = items
+    .filter(isRecord)
+    .map(item => {
+      const videoId = item.id?.videoId || "";
+      const snippet = item.snippet || {};
+      const thumb = (snippet.thumbnails && (snippet.thumbnails.high || snippet.thumbnails.medium || snippet.thumbnails.default)) || null;
+      return {
+        videoId: String(videoId),
+        title: String(snippet.title || ""),
+        channel: String(snippet.channelTitle || "YouTube creator"),
+        thumbnail: thumb ? String(thumb.url) : "",
+        duration: videoId && durationsMap[videoId] ? durationsMap[videoId] : "On demand",
+        note: String(snippet.description || "").replace(/\s+/g, " ").trim().slice(0, 180) || "Public YouTube result discovered via Data API.",
+        provider: "youtube" as const,
+      };
+    })
+    .filter(r => r.videoId && r.title)
+    .slice(0, 8);
+
+  return { provider: "youtube", responded: true, results };
+}
+
 export async function searchEducationalVideos(query: string): Promise<LiveSearchResponse> {
   const normalizedQuery = normalizeLearningQuery(query) || query.trim();
   if (!normalizedQuery) return { status: "empty", source: null, results: [] };
   const encodedQuery = encodeURIComponent(normalizedQuery);
-  const attempts = [
-    ...PIPED_INSTANCES.map(instance => searchProvider("piped", instance, encodedQuery)),
-    ...INVIDIOUS_INSTANCES.map(instance => searchProvider("invidious", instance, encodedQuery)),
-    searchYouTube(encodedQuery),
-  ];
+
+  const attempts: Promise<ProviderAttempt>[] = [];
+
+  // Prefer the YouTube Data API if a key is configured (most reliable).
+  if (process.env.YOUTUBE_API_KEY || process.env.YT_API_KEY) {
+    attempts.push(searchYouTubeDataApi(encodedQuery));
+  }
+
+  // Then try public relays (piped + invidious)
+  attempts.push(...PIPED_INSTANCES.map(instance => searchProvider("piped", instance, encodedQuery)));
+  attempts.push(...INVIDIOUS_INSTANCES.map(instance => searchProvider("invidious", instance, encodedQuery)));
+
+  // Finally fall back to HTML scraping of YouTube search results
+  attempts.push(searchYouTube(encodedQuery));
 
   // Public relays change availability frequently. Return immediately when any
-  // live YouTube-compatible provider produces videos instead of waiting for
-  // slower or blocked relays to time out.
+  // provider produces videos instead of waiting for slower or blocked relays.
   return await new Promise<LiveSearchResponse>(resolve => {
     let completed = 0;
     let providerResponded = false;
@@ -238,8 +306,8 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
       }
       if (!settled && completed === attempts.length) {
         resolve(providerResponded
-          ? { status: "empty", source: null, results: [], message: "No public YouTube videos matched that topic. Try another phrase." }
-          : { status: "unavailable", source: null, results: [], message: "Live YouTube search is temporarily unavailable. Retry in a moment." });
+          ? { status: "empty", source: null, results: [], message: "No public videos matched that topic. Try another phrase." }
+          : { status: "unavailable", source: null, results: [], message: "Live video search is temporarily unavailable. Retry in a moment." });
       }
     });
   });
