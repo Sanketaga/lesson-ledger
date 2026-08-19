@@ -33,6 +33,7 @@ describe("learning-intent course curation", () => {
       "learn python introduction fundamentals",
       "learn python basics for beginners",
       "python core concepts tutorial",
+      "python skills and techniques tutorial",
       "python practice project examples",
     ]);
   });

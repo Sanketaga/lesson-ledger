@@ -53,6 +53,7 @@ export type LiveSearchResult = {
   note: string;
   provider: SearchProvider;
   learningStage?: string;
+  curriculumStageHint?: number;
 };
 
 export type LiveSearchResponse = {
@@ -74,6 +75,7 @@ export type LiveSearchResponse = {
 };
 
 function curriculumStage(result: LiveSearchResult) {
+  if (typeof result.curriculumStageHint === "number") return result.curriculumStageHint;
   const text = `${result.title} ${result.note}`;
   if (FOUNDATION_STAGE.test(text)) return 0;
   if (CORE_CONCEPT_STAGE.test(text)) return 2;
@@ -154,7 +156,10 @@ export function curateLearningResults(results: LiveSearchResult[], intent: Learn
       if (isCompleteCourse) completeCourseSeen = true;
       return true;
     })
-    .map(item => ({ ...item.result, learningStage: CURRICULUM_STAGE_LABELS[item.stage] ?? "Further practice" }))
+    .map(item => {
+      const { curriculumStageHint: _curriculumStageHint, ...result } = item.result;
+      return { ...result, learningStage: CURRICULUM_STAGE_LABELS[item.stage] ?? "Further practice" };
+    })
     .slice(0, 8);
 }
 
@@ -376,12 +381,15 @@ export function buildCurriculumSearchQueries(intent: LearningIntent) {
     `learn ${subject} introduction fundamentals`,
     `learn ${subject} basics for beginners`,
     `${subject} core concepts tutorial`,
+    `${subject} skills and techniques tutorial`,
     `${subject} practice project examples`,
   ];
 }
 
 async function searchYouTubeCurriculum(intent: LearningIntent) {
-  return Promise.all(buildCurriculumSearchQueries(intent).map(query => searchYouTube(encodeURIComponent(query))));
+  return Promise.all(buildCurriculumSearchQueries(intent).map((query, curriculumStageHint) =>
+    searchYouTube(encodeURIComponent(query)).then(attempt => ({ ...attempt, curriculumStageHint })),
+  ));
 }
 
 function parseISODurationToSeconds(duration = "") {
@@ -453,7 +461,9 @@ export async function searchEducationalVideos(query: string): Promise<LiveSearch
 
   const debugAttempts: { provider: SearchProvider; endpoint?: string; responded: boolean; resultCount: number; error?: string; tookMs?: number }[] = [];
   const curriculumAttempts = await searchYouTubeCurriculum(intent);
-  const curriculumResults = curriculumAttempts.reduce<LiveSearchResult[]>((all, attempt) => all.concat(attempt.results), []);
+  const curriculumResults = curriculumAttempts.reduce<LiveSearchResult[]>((all, attempt) =>
+    all.concat(attempt.results.map(result => ({ ...result, curriculumStageHint: attempt.curriculumStageHint }))),
+  []);
   const curatedCurriculum = curateLearningResults(curriculumResults, intent);
 
   curriculumAttempts.forEach(attempt => {

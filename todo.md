@@ -98,12 +98,13 @@
 - [x] Replace one-shot broad retrieval with topic-agnostic stage-specific discovery so arbitrary subjects can form complete foundations-to-practice courses.
 - [x] Classify plural project/tutorial lessons as applied work and deduplicate extended complete-course title variants across source results.
 - [x] Exclude ultra-short discovery clips so generalized courses contain substantive lessons rather than shorts or teasers.
-- [ ] Test representative technical, academic, practical, and language learning topics for coherent course assembly.
-- [ ] Publish and verify the topic-agnostic learning-course curation flow on the deployed site.
-- [ ] Test deployed course assembly for at least one academic topic and one practical skill topic, confirming staged instructional results.
+- [x] Test representative technical, academic, practical, and language learning topics for coherent course assembly.
+- [x] Publish and verify the topic-agnostic learning-course curation flow on the deployed site.
+- [x] Test deployed course assembly for at least one academic topic and one practical skill topic, confirming staged instructional results.
 - [x] Add regression coverage for representative academic and practical topics to verify stage-specific discovery and filtering.
-- [ ] Refine stage labeling or selection if non-language production courses fail to show a meaningful foundations-to-practice progression.
+- [x] Refine stage labeling or selection if non-language production courses fail to show a meaningful foundations-to-practice progression.
 - [x] Exclude first-person study advice and language-learning detours from practical-subject course results.
-- [ ] Balance non-language stage selection so academic and practical courses include foundations, beginner setup, core concepts or skills, and applied practice when teaching-quality candidates exist.
-- [ ] Re-verify a balanced academic course and practical course in production after the stage-selection refinement.
-- [ ] Add regression cases that reject academic or practical course results collapsing into mostly introductory lessons or omitting later stages.
+- [x] Balance non-language stage selection so academic and practical courses include foundations, beginner setup, core concepts or skills, and applied practice when teaching-quality candidates exist.
+- [x] Re-verify a balanced academic course and practical course in production after the stage-selection refinement.
+- [x] Add regression cases that reject academic or practical course results collapsing into mostly introductory lessons or omitting later stages.
+- [ ] Preserve stage-specific discovery intent through ranking and re-test academic and practical courses for a balanced multi-stage path.
