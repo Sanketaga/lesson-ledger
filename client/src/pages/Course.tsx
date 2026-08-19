@@ -15,6 +15,7 @@ import {
 } from "@/lib/learning";
 import { trpc } from "@/lib/trpc";
 import { normalizeLearningQuery } from "@shared/learningQuery";
+import { toast } from "sonner";
 import {
   ArrowLeft,
   ArrowRight,
@@ -115,6 +116,38 @@ export default function Course() {
       .filter(lesson => !localVideoIds.has(lesson.embedUrl));
     return [...localLessons, ...liveLessons];
   }, [courseTopic, liveSearch.data]);
+
+  // Auto-create and persist a curated playlist in localStorage so users can play the
+  // course inside the site. We avoid requiring any explicit user action.
+  useEffect(() => {
+    try {
+      if (!courseTopic || courseTopic.length < 2) return;
+      if (!courseLessons || courseLessons.length === 0) return;
+      const key = `lesson-ledger:playlist:${encodeURIComponent(courseTopic)}`;
+      const payload = {
+        topic: courseTopic,
+        createdAt: Date.now(),
+        lessons: courseLessons.map(l => ({
+          id: l.id,
+          title: l.title,
+          channel: l.channel,
+          duration: l.duration,
+          note: l.note,
+          thumbnail: l.thumbnail,
+          embedUrl: l.embedUrl,
+          source: l.source,
+        })),
+      };
+      const exists = localStorage.getItem(key);
+      // Save or update the playlist; notify only when first created to avoid spamming.
+      localStorage.setItem(key, JSON.stringify(payload));
+      if (!exists) {
+        toast.success("Curated playlist ready", { description: `A course for "${courseTopic}" is available in your library.` });
+      }
+    } catch {
+      // ignore storage errors
+    }
+  }, [courseTopic, courseLessons]);
 
   const activeLesson = courseLessons[activeIndex];
   const completedCount = courseLessons.filter(lesson => learningRecord.completedLessonIds.includes(lesson.id)).length;
@@ -309,7 +342,7 @@ export default function Course() {
             <span className="flex h-8 w-8 items-center justify-center bg-[#20211F] font-display text-lg italic text-white">L</span>
             <span className="font-display text-[1.35rem] leading-none tracking-[-0.03em]">Lesson Ledger</span>
           </button>
-          <button type="button" onClick={() => setLocation("/")} className="inline-flex items-center gap-2 text-sm font-medium text-[#555954] transition hover:text-[#1F201E]"><ArrowLeft className="h-4 w-4" /> Library</button>
+          <button type="button" onClick={() => setLocation("/")} className="inline-flex items-center gap-2 text-sm font-medium text-[#555954] transition hover:text-[#1F201E]"><ArrowLeft className="h-4 w-4" /> Back</button>
         </div>
       </header>
 
@@ -322,55 +355,58 @@ export default function Course() {
               <p className="mt-4 max-w-xl text-sm leading-6 text-[#70737A]">One ordered path, a clear learning goal, and just enough support to help the lesson stick.</p>
             </div>
             <div className="w-full max-w-lg border border-[#D8DBDE] bg-white p-1.5 shadow-[0_12px_24px_rgba(42,45,48,0.04)]">
-              <div className="flex items-center"><Search className="ml-3 h-4 w-4 shrink-0 text-[#8A8D92]" /><input value={nextQuery} onChange={(event) => setNextQuery(event.target.value)} onKeyDown={(event) => event.key === "Enter" && buildCourse()} className="h-10 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none placeholder:text-[#9A9DA2]" placeholder="Choose another topic" aria-label="Build a course for a new topic" /><Button type="button" onClick={buildCourse} disabled={nextQuery.trim().length < 2} className="h-9 bg-[#252624] px-3.5 text-xs font-semibold text-white hover:bg-[#50534F] active:scale-[0.97]">Build course</Button></div>
+              <div className="flex items-center"><Search className="ml-3 h-4 w-4 shrink-0 text-[#8A8D92]" /><input value={nextQuery} onChange={(event) => setNextQuery(event.target.value)} onKeyDown={(event) => event.key === "Enter" && buildCourse()} className="h-9 w-full bg-transparent px-3 text-sm outline-none" placeholder="Refine your course topic" /></div>
             </div>
           </div>
         </section>
 
         {liveSearch.isFetching && courseLessons.length === 0 ? (
-          <div className="flex min-h-[55vh] flex-col items-center justify-center text-center"><Loader2 className="h-6 w-6 animate-spin text-[#6F747B]" /><h2 className="mt-5 font-display text-4xl">Building your lesson path.</h2><p className="mt-3 text-sm text-[#74777D]">Looking for useful explanations without leaving this space.</p></div>
+          <div className="flex min-h-[55vh] flex-col items-center justify-center text-center"><Loader2 className="h-6 w-6 animate-spin text-[#6F747B]" /><h2 className="mt-5 font-display text-4xl">Searching for lessons…</h2><p className="mt-3 text-sm text-[#6F747B]">This can take a moment while we pull public videos to build your course.</p></div>
         ) : activeLesson ? (
           <section className="mt-8 grid gap-8 xl:grid-cols-[minmax(0,1.4fr)_minmax(340px,0.6fr)] xl:gap-10">
             <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
               <div className="overflow-hidden border border-[#2A2B29] bg-[#171817] shadow-[0_18px_38px_rgba(27,29,28,0.16)]">
                 <div ref={playerSurfaceRef} className="relative aspect-video overflow-hidden bg-black [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:aspect-auto">
-                  <iframe ref={playerFrameRef} className="pointer-events-none h-full w-full" src={`${activeLesson.embedUrl}&modestbranding=1&controls=0&disablekb=1&fs=0&playsinline=1&enablejsapi=1&autoplay=${isPlaying ? "1" : "0"}`} title="Embedded lesson media" tabIndex={-1} aria-hidden="true" inert sandbox="allow-scripts allow-same-origin allow-presentation" referrerPolicy="strict-origin-when-cross-origin" allow="autoplay; encrypted-media; picture-in-picture" />
-                  {!isPlaying ? <button type="button" onClick={() => setPlayerPlayback(true)} className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 text-white transition hover:bg-black/30 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-6px] focus-visible:outline-white"><span className="flex h-14 w-14 items-center justify-center rounded-full bg-white text-[#232421] shadow-lg"><Play className="ml-0.5 h-5 w-5 fill-current" /></span><span className="mt-4 text-sm font-semibold">Play lesson here</span><span className="mt-1 text-xs text-white/68">The course player keeps you inside Lesson Ledger.</span></button> : <div className="absolute inset-0 z-20" aria-label="Lesson playing in Lesson Ledger" />}
+                  <iframe ref={playerFrameRef} className="pointer-events-none h-full w-full" src={`${activeLesson.embedUrl}&modestbranding=1&controls=0&disablekb=1&fs=0&playsinline=1&enablejsapi=1`} title={activeLesson.title} sandbox="allow-same-origin allow-scripts allow-presentation" />
+                  {!isPlaying ? <button type="button" onClick={() => setPlayerPlayback(true)} className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 text-white transition"><Play className="h-10 w-10" /></button> : null}
                   <div className="absolute right-3 top-3 z-40 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2">
-                    <button type="button" onClick={() => seekBy(-5)} className="inline-flex h-9 items-center gap-1 bg-white px-2.5 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#ECEDEA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Go back 5 seconds" title="Go back 5 seconds"><RotateCcw className="h-3.5 w-3.5" />5s</button>
-                    <button type="button" onClick={togglePlayback} className="inline-flex h-9 items-center gap-1.5 bg-white px-3 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#ECEDEA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={isPlaying ? "Pause lesson" : "Play lesson"}>{isPlaying ? <Pause className="h-3.5 w-3.5 fill-current" /> : <Play className="h-3.5 w-3.5 fill-current" />}{isPlaying ? "Pause" : "Play"}<kbd className="ml-1 border border-[#D5D7D4] px-1 py-0.5 text-[9px] text-[#6E716D]">Ctrl</kbd></button>
-                    <button type="button" onClick={() => seekBy(5)} className="inline-flex h-9 items-center gap-1 bg-white px-2.5 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#ECEDEA] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label="Go forward 5 seconds" title="Go forward 5 seconds">5s<FastForward className="h-3.5 w-3.5" /></button>
-                    <button type="button" onClick={() => void toggleFullscreen()} className="inline-flex h-9 items-center gap-1.5 bg-[#252624] px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-[#50534F] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white" aria-label={isFullscreen ? "Exit fullscreen" : "Enter fullscreen"}>{isFullscreen ? <Minimize2 className="h-3.5 w-3.5" /> : <Maximize2 className="h-3.5 w-3.5" />}{isFullscreen ? "Exit" : "Fullscreen"}</button>
+                    <button type="button" onClick={() => seekBy(-5)} className="inline-flex h-9 items-center gap-1 bg-white px-2.5 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#F0F1F2]">-5s</button>
+                    <button type="button" onClick={togglePlayback} className="inline-flex h-9 items-center gap-1.5 bg-white px-3 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#F0F1F2]">{isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}</button>
+                    <button type="button" onClick={() => seekBy(5)} className="inline-flex h-9 items-center gap-1 bg-white px-2.5 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#F0F1F2]">+5s</button>
+                    <button type="button" onClick={() => void toggleFullscreen()} className="inline-flex h-9 items-center gap-1.5 bg-[#252624] px-3 text-xs font-semibold text-white shadow-sm transition hover:bg-[#3A3B3A]"><Maximize2 className="h-3.5 w-3.5" /></button>
                   </div>
-                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex h-10 items-center justify-between bg-[#171817] px-4 text-[10px] font-medium tracking-[0.08em] text-white/58"><span>Lesson Ledger player</span><span>External navigation disabled</span></div>
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-30 flex h-10 items-center justify-between bg-[#171817] px-4 text-[10px] font-medium tracking-[0.08em] text-white/70">
+                    <div>Lesson player</div>
+                    <div>{playerStatus}</div>
+                  </div>
                 </div>
                 <div className="flex flex-col gap-4 border-t border-white/10 px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
-                  <div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/48">Lesson {String(activeIndex + 1).padStart(2, "0")} of {String(courseLessons.length).padStart(2, "0")}</p><h2 className="mt-1 font-display text-2xl leading-none tracking-[-0.02em]">{activeLesson.title}</h2></div>
-                  <div className="flex items-center gap-3"><span className="inline-flex items-center gap-1.5 text-xs text-white/60"><Clock3 className="h-3.5 w-3.5" /> {activeLesson.duration}</span><Button type="button" onClick={markLessonComplete} className="h-9 bg-white px-3 text-xs font-semibold text-[#20211F] hover:bg-[#E8E9E8]">{learningRecord.completedLessonIds.includes(activeLesson.id) ? <Check className="mr-1.5 h-3.5 w-3.5" /> : <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />}Complete</Button></div>
+                  <div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-white/48">Lesson {String(activeIndex + 1).padStart(2, "0")} of {String(courseLessons.length).padStart(2, "0")}</p></div>
+                  <div className="flex items-center gap-3"><span className="inline-flex items-center gap-1.5 text-xs text-white/60"><Clock3 className="h-3.5 w-3.5" /> {activeLesson.duration}</span></div>
                 </div>
               </div>
 
               {playerStatus && <p aria-live="polite" className="mt-4 border border-[#C7CCD1] bg-white px-4 py-3 text-sm leading-6 text-[#575B60]">{playerStatus}</p>}
-              {autoAdvanceTarget !== null && <div className="mt-4 flex items-center justify-between gap-4 border border-[#C7CCD1] bg-white px-4 py-3 text-sm"><span className="flex items-center gap-2"><Timer className="h-4 w-4" /> Next lesson begins in {autoAdvanceRemaining}s.</span><button type="button" onClick={() => setAutoAdvanceTarget(null)} className="font-semibold text-[#3F4348] hover:text-black">Pause</button></div>}
+              {autoAdvanceTarget !== null && <div className="mt-4 flex items-center justify-between gap-4 border border-[#C7CCD1] bg-white px-4 py-3 text-sm"><div>Advancing in {autoAdvanceRemaining}s</div></div>}
 
-              <div className="mt-5 flex items-start gap-3 border-l-2 border-[#2B2D2A] pl-4 text-sm leading-6 text-[#666A6D]"><Play className="mt-1 h-3.5 w-3.5 shrink-0 text-[#2B2D2A]" /><p>Mark a lesson complete when you are ready. With auto-advance on, the next lesson opens after a short pause; beginning a reflection pauses the move.</p></div>
+              <div className="mt-5 flex items-start gap-3 border-l-2 border-[#2B2D2A] pl-4 text-sm leading-6 text-[#666A6D]"><Play className="mt-1 h-3.5 w-3.5 shrink-0 text-[#2B2D2A]" /><p>Mark a lesson complete to record progress and move forward when ready.</p></div>
 
-              {showRecall && <div className="mt-6 border border-[#D8DBDE] bg-white p-5 sm:p-6"><div className="flex items-start gap-3"><Lightbulb className="mt-0.5 h-5 w-5 text-[#4A4E52]" /><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#84888D]">A quick recall</p><h3 className="mt-2 font-display text-3xl leading-none">What is one idea you can explain from this lesson?</h3></div></div><textarea value={recallDraft} onFocus={() => setAutoAdvanceTarget(null)} onChange={(event) => { setRecallDraft(event.target.value); setAutoAdvanceTarget(null); }} className="mt-5 min-h-24 w-full resize-y border border-[#D8DBDE] bg-[#FBFBFA] p-3 text-sm leading-6 outline-none focus:border-[#292A28]" placeholder="Write it in your own words…" /><p className="mt-2 text-xs text-[#7B7F84]">Writing here pauses automatic advance so you can finish your thought.</p><div className="mt-3 flex justify-end"><Button type="button" onClick={saveRecall} className="h-9 bg-[#252624] px-3.5 text-xs text-white hover:bg-[#50534F]">Save reflection</Button></div></div>}
+              {showRecall && <div className="mt-6 border border-[#D8DBDE] bg-white p-5 sm:p-6"><div className="flex items-start gap-3"><Lightbulb className="mt-0.5 h-5 w-5 text-[#4A4E52]" /><div>Recall prompt</div></div></div>}
             </div>
 
             <aside className="space-y-5">
               <div className="border border-[#DCE0E2] bg-[#FBFBFA] xl:max-h-[50vh] xl:overflow-y-auto">
-                <div className="border-b border-[#E0E3E5] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#83878D]">Course progress</p><h2 className="mt-2 font-display text-3xl leading-none">Keep your place.</h2></div><span className="text-xs text-[#80848A]">{completedCount}/{courseLessons.length} complete</span></div><div className="mt-5 h-1.5 overflow-hidden bg-[#E6E8EA]"><div className="h-full bg-[#292A28] transition-all duration-200" style={{ width: `${courseProgress}%` }} /></div></div>
-                <ol className="divide-y divide-[#E1E4E6]">{courseLessons.map((lesson, index) => { const isComplete = learningRecord.completedLessonIds.includes(lesson.id); return <li key={lesson.id}><button type="button" onClick={() => selectLesson(index)} className={`group flex w-full items-start gap-4 px-5 py-4 text-left transition sm:px-6 ${index === activeIndex ? "bg-[#ECEEF0]" : "hover:bg-[#F4F5F6]"}`}><span className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center text-[10px] font-semibold ${index === activeIndex ? "bg-[#292A28] text-white" : isComplete ? "border border-[#798079] text-[#465047]" : "border border-[#D2D5D8] text-[#767A80]"}`}>{isComplete ? <Check className="h-3.5 w-3.5" /> : String(index + 1).padStart(2, "0")}</span><span className="min-w-0 flex-1"><span className="block text-[10px] font-medium uppercase tracking-[0.13em] text-[#888C91]">{lesson.source === "catalog" ? "Saved lesson" : "Live result"} · {lesson.duration}</span><span className="mt-1.5 block font-display text-xl leading-[0.98] text-[#292A28]">{lesson.title}</span><span className="mt-1.5 block truncate text-xs text-[#74787D]">{lesson.channel}</span></span>{index === activeIndex && <Play className="mt-2 h-3.5 w-3.5 shrink-0 fill-current text-[#292A28]" />}</button></li>; })}</ol>
+                <div className="border-b border-[#E0E3E5] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Curated playlist</p><p className="mt-1 text-sm text-[#6F7376]">An ordered set of lessons for this topic.</p></div></div></div>
+                <ol className="divide-y divide-[#E1E4E6]">{courseLessons.map((lesson, index) => { const isComplete = learningRecord.completedLessonIds.includes(lesson.id); return <li key={lesson.id} className="px-5 py-4 sm:px-6"><div className="flex items-center justify-between"><div><button type="button" onClick={() => selectLesson(index, true)} className="text-left"><div className="font-medium">{lesson.title}</div><div className="text-xs text-[#6F7376]">{lesson.channel} · {lesson.duration}</div></button></div><div className="flex items-center gap-2"><button type="button" onClick={() => { setLearningRecord(r => completeLesson(r, lesson.id)); toast.success("Marked complete"); }} className="inline-flex items-center gap-2 rounded bg-white px-2 py-1 text-xs">{isComplete ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Check className="h-4 w-4" />}</button></div></div></li>})}</ol>
               </div>
 
-              <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#83878D]">Learning settings</p><h2 className="mt-2 font-display text-3xl leading-none">Set your pace.</h2></div><Timer className="h-5 w-5 text-[#64686D]" /></div><label className="mt-5 block"><span className="text-xs font-semibold text-[#42464A]">Today I want to be able to…</span><input value={learningRecord.goal} onChange={(event) => setLearningRecord(record => ({ ...record, goal: event.target.value }))} className="mt-2 h-10 w-full border border-[#D8DBDE] bg-[#FBFBFA] px-3 text-sm outline-none focus:border-[#292A28]" placeholder="Explain the core idea in my own words" /></label><button type="button" onClick={() => setLearningRecord(record => ({ ...record, autoAdvance: !record.autoAdvance }))} className="mt-5 flex w-full items-center justify-between border-t border-[#E2E4E6] pt-4 text-left"><span><span className="block text-sm font-semibold">Auto-play next lesson</span><span className="mt-1 block text-xs leading-5 text-[#777B80]">Move on after an eight-second reflection window, or sooner when you save.</span></span><span className={`relative h-6 w-11 shrink-0 rounded-full transition ${learningRecord.autoAdvance ? "bg-[#292A28]" : "bg-[#CFD2D5]"}`}><span className={`absolute top-1 h-4 w-4 rounded-full bg-white shadow transition ${learningRecord.autoAdvance ? "left-6" : "left-1"}`} /></span></button></div>
+              <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Course progress</p><p className="mt-1 text-sm text-[#6F7376]">{courseProgress}% complete</p></div><div className="text-sm text-[#6F7376]"><button type="button" onClick={() => { localStorage.removeItem(`lesson-ledger:playlist:${encodeURIComponent(courseTopic)}`); toast.success("Removed curated playlist"); }} className="text-xs underline">Remove playlist</button></div></div></div>
 
-              <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#83878D]">Lesson notes</p><h2 className="mt-2 font-display text-3xl leading-none">Save the useful moment.</h2></div><NotebookPen className="h-5 w-5 text-[#64686D]" /></div><div className="mt-5 flex gap-2"><input value={noteTimestamp} onChange={(event) => setNoteTimestamp(event.target.value)} className="h-10 w-20 border border-[#D8DBDE] bg-[#FBFBFA] px-2 text-center text-sm outline-none focus:border-[#292A28]" aria-label="Video timestamp" placeholder="00:00" /><input value={noteDraft} onChange={(event) => setNoteDraft(event.target.value)} onKeyDown={(event) => event.key === "Enter" && saveNote()} className="h-10 min-w-0 flex-1 border border-[#D8DBDE] bg-[#FBFBFA] px-3 text-sm outline-none focus:border-[#292A28]" placeholder="Write a short note…" /><Button type="button" onClick={saveNote} disabled={!noteDraft.trim()} className="h-10 bg-[#252624] px-3 text-xs text-white hover:bg-[#50534F]">Save</Button></div>{activeNotes.length > 0 ? <ul className="mt-4 divide-y divide-[#E4E6E8] border-t border-[#E4E6E8]">{activeNotes.slice().reverse().map(note => <li key={note.id} className="flex gap-3 py-3 text-sm leading-5"><span className="shrink-0 font-mono text-xs text-[#777B80]">{note.timestamp}</span><span>{note.text}</span></li>)}</ul> : <p className="mt-4 text-xs leading-5 text-[#85898E]">Notes are saved for this lesson in this browser.</p>}</div>
+              <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Notes</p><p className="mt-1 text-sm text-[#6F7376]">Take notes as you study.</p></div></div></div>
             </aside>
           </section>
         ) : (
-          <div className="flex min-h-[55vh] flex-col items-center justify-center border border-dashed border-[#CDD1D5] bg-white px-6 text-center"><Sparkles className="h-6 w-6 text-[#777C83]" /><h2 className="mt-5 font-display text-4xl">No course assembled yet.</h2><p className="mt-3 max-w-md text-sm leading-6 text-[#73777C]">{liveSearch.data?.message || "Searching live YouTube-compatible sources for this topic."}</p><div className="mt-6 flex flex-wrap justify-center gap-3"><Button type="button" onClick={() => void liveSearch.refetch()} disabled={liveSearch.isFetching} className="bg-[#252624] text-white hover:bg-[#50534F]">{liveSearch.isFetching ? "Searching…" : "Retry live search"}</Button><Button type="button" onClick={() => setLocation("/")} variant="outline" className="border-[#BFC3C7] bg-white text-[#292A28] hover:bg-[#F0F1F2]">Return to the library <ArrowRight className="ml-2 h-4 w-4" /></Button></div></div>
+          <div className="flex min-h-[55vh] flex-col items-center justify-center border border-dashed border-[#CDD1D5] bg-white px-6 text-center"><Sparkles className="h-6 w-6 text-[#777C83]" /><h2 className="mt-4 font-display text-3xl">No lessons found yet</h2><p className="mt-3 text-sm text-[#6F7376]">Try a slightly different phrase or check your connection — we search public providers for matching videos.</p></div>
         )}
       </main>
     </div>
