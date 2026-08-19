@@ -107,5 +107,5 @@
 - [x] Balance non-language stage selection so academic and practical courses include foundations, beginner setup, core concepts or skills, and applied practice when teaching-quality candidates exist.
 - [x] Re-verify a balanced academic course and practical course in production after the stage-selection refinement.
 - [x] Add regression cases that reject academic or practical course results collapsing into mostly introductory lessons or omitting later stages.
-- [ ] Preserve stage-specific discovery intent through ranking and re-test academic and practical courses for a balanced multi-stage path.
-- [ ] Blend stage-query intent with explicit lesson semantics so skills and practice videos are not mislabeled as beginner setup.
+- [x] Preserve stage-specific discovery intent through ranking and re-test academic and practical courses for a balanced multi-stage path.
+- [x] Blend stage-query intent with explicit lesson semantics so skills and practice videos are not mislabeled as beginner setup.
