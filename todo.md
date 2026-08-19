@@ -37,6 +37,7 @@
 - [x] Define the actual visible video-frame capture requirement and its current-tab permission step.
 - [x] Replace the generated Snapshot card with a cropped capture of the current player frame.
 - [x] Validate actual-frame capture, preview, repeat download, and responsive behavior; save the updated checkpoint.
-- [ ] Validate a native current-tab Snapshot on a shareable site view; the managed local Preview blocks tab sharing before a real stream is delivered.
+- [x] Validate a native current-tab Snapshot on a shareable site view; the managed local Preview blocks tab sharing before a real stream is delivered.
+- [x] Validate the repaired immediate-click Snapshot flow through a real current-tab share, including preview and repeat download, on a shareable site view.
 - [x] Restore player controls if a browser share prompt stalls or is cancelled.
 - [x] Add unit coverage for player-frame crop bounds used by actual Snapshot capture.

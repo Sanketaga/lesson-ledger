@@ -173,17 +173,17 @@ export default function Course() {
     let captureVideo: HTMLVideoElement | undefined;
     let releaseFrame: (() => void) | undefined;
     try {
-      setIsCapturingFrame(true);
-      setSnapshotStatus("Choose the current Lesson Ledger tab in the browser prompt to capture the visible video frame.");
-      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+      // This call must remain in the original click gesture. Delaying it even by
+      // animation frames causes some browsers to reject the sharing request.
+      setSnapshotStatus("In the browser picker, select the Lesson Ledger tab, keep “Share tab audio” off, then choose Share.");
       stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { displaySurface: "browser" },
+        video: true,
         audio: false,
         preferCurrentTab: true,
-        selfBrowserSurface: "include",
-        surfaceSwitching: "exclude",
       } as unknown as MediaStreamConstraints);
       if (captureRequestIdRef.current !== requestId) return;
+      setIsCapturingFrame(true);
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const videoTrack = stream.getVideoTracks()[0];
       if (!videoTrack) throw new Error("The browser did not provide a video track for the Snapshot.");
       const ImageCaptureConstructor = (window as Window & typeof globalThis & {
@@ -241,7 +241,7 @@ export default function Course() {
     } catch (error) {
       if (captureRequestIdRef.current !== requestId) return;
       const name = error instanceof DOMException ? error.name : "";
-      setSnapshotStatus(name === "NotAllowedError" ? "Snapshot cancelled. Choose the current Lesson Ledger tab and allow sharing to capture the actual video frame." : "The actual-frame Snapshot could not be created. Try again and choose the current Lesson Ledger tab.");
+      setSnapshotStatus(name === "NotAllowedError" ? "Snapshot was not shared. Click Snapshot again, select the Lesson Ledger tab in the browser picker, and press Share." : "The actual-frame Snapshot could not be created. Click Snapshot again and share the Lesson Ledger tab in the browser picker.");
     } finally {
       stream?.getTracks().forEach(track => track.stop());
       releaseFrame?.();
