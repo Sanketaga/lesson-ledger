@@ -96,6 +96,10 @@ The repaired Screenshot action now enters a clear pending state labelled “Capt
 
 The screen-sharing requirement is intentionally removed. The new Snapshot action creates a one-click, local SVG study card containing the course title, active lesson, source, lesson position, and Lesson Ledger course timer. It is not presented as a pixel-perfect copy of a third-party video frame; instead, it is a dependable course-owned reference image that works even when embedded media is cross-origin or the provider blocks playback.
 
+## Actual Video-Frame Snapshot
+
+The student now requires the actual video image currently visible in the player rather than a generated study card. Because the provider media is cross-origin, Lesson Ledger cannot read its pixels directly. The actual-frame Snapshot therefore asks the browser to share only the current Lesson Ledger tab, briefly hides its own player chrome, crops the shared-tab feed to the exact embedded video rectangle, and saves that PNG locally. This is the only truthful route to a live provider-frame capture; if a student declines permission, no substitute image is created.
+
 Browser validation confirms that clicking **Snapshot** immediately generated a local preview, downloaded the image, and displayed the success message without opening any tab-sharing permission picker. The preview and repeat-download action remain inside the focused course.
 
 The repaired capture completed successfully: the player reported “Screenshot ready and downloaded,” displayed an in-page preview, and exposed a **Download again** action. The visible rewind control also returned “Moved back 5 seconds,” confirming both five-second directions now respond within the focused course.

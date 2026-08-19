@@ -34,3 +34,9 @@
 - [x] Define the course-owned snapshot scope and remove the browser-sharing dependency from the student workflow.
 - [x] Replace Screenshot with a one-click Snapshot action that creates a timestamped lesson card and local download.
 - [x] Validate one-click snapshot creation, download, and responsive controls; save the updated checkpoint.
+- [x] Define the actual visible video-frame capture requirement and its current-tab permission step.
+- [x] Replace the generated Snapshot card with a cropped capture of the current player frame.
+- [x] Validate actual-frame capture, preview, repeat download, and responsive behavior; save the updated checkpoint.
+- [ ] Validate a native current-tab Snapshot on a shareable site view; the managed local Preview blocks tab sharing before a real stream is delivered.
+- [x] Restore player controls if a browser share prompt stalls or is cancelled.
+- [x] Add unit coverage for player-frame crop bounds used by actual Snapshot capture.
