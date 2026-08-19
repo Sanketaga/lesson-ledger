@@ -4,6 +4,7 @@
  */
 import { Button } from "@/components/ui/button";
 import { filterCatalog, type CatalogVideo } from "@/lib/catalog";
+import { dedupeCourseSequence } from "@/lib/courseSequence";
 import { isFullscreenTarget } from "@/lib/fullscreen";
 import {
   createManagedPlayerVars,
@@ -131,7 +132,7 @@ export default function Course() {
         learningStage: result.learningStage,
       }))
       .filter(lesson => !localVideoIds.has(lesson.embedUrl));
-    return [...localLessons, ...liveLessons];
+    return dedupeCourseSequence([...localLessons, ...liveLessons]);
   }, [courseTopic, liveSearch.data]);
 
   // Auto-create and persist a curated playlist in localStorage so users can play the
