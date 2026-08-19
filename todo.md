@@ -58,4 +58,4 @@
 - [x] Normalize instructional query phrasing and preserve reliable catalog/live-search fallback behavior.
 - [x] Add automated coverage for natural-language search requests and validate the focused-course result.
 - [x] Ensure the shared natural-language query test is included in the Vitest suite.
-- [ ] Push the verified search repair to the private GitHub repository for the connected Vercel workflow.
+- [x] Push the verified search repair to the private GitHub repository for the connected Vercel workflow.
