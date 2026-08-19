@@ -72,4 +72,4 @@
 - [x] Reconcile the newer GitHub main revision with the verified local release before applying the build repair.
 - [x] Preserve the verified focused landing experience and in-site course navigation while repairing the Vercel source revision.
 - [x] Restore a valid Home.tsx and add regression coverage for the landing-page module.
-- [ ] Run the exact Vercel build, commit the repair, and synchronize GitHub main for redeployment.
+- [x] Run the exact Vercel build, commit the repair, and synchronize GitHub main for redeployment.
