@@ -79,3 +79,6 @@
 - [x] Validate the repaired LiveSearch on the deployed site and push the confirmed fix to GitHub main.
 - [x] Remove the invalid Vercel function runtime override that is blocking deployment of the repaired API routes.
 - [x] Bundle the shared Express application inside the Vercel API function directory to prevent runtime module-resolution failures.
+- [ ] Reproduce the deployed course player startup failure and identify the blocked playback handoff.
+- [ ] Repair in-site YouTube player startup while preserving owned controls, focus protection, and course navigation.
+- [ ] Add regression coverage and verify video playback plus controls on the deployed course workspace.

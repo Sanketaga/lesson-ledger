@@ -6,6 +6,14 @@ import { Button } from "@/components/ui/button";
 import { filterCatalog, type CatalogVideo } from "@/lib/catalog";
 import { isFullscreenTarget } from "@/lib/fullscreen";
 import {
+  createManagedPlayerVars,
+  describeYouTubePlayerError,
+  getYouTubeEmbedHost,
+  getYouTubeVideoId,
+  loadYouTubeIframeApi,
+  type YouTubePlayer,
+} from "@/lib/youtube";
+import {
   completeLesson,
   EMPTY_LEARNING_RECORD,
   formatTimestamp,
@@ -90,9 +98,11 @@ export default function Course() {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [playerSeconds, setPlayerSeconds] = useState(0);
   const [playerStatus, setPlayerStatus] = useState<string | null>(null);
-  const playerFrameRef = useRef<HTMLIFrameElement>(null);
+  const playerHostRef = useRef<HTMLDivElement>(null);
   const playerSurfaceRef = useRef<HTMLDivElement>(null);
+  const playerRef = useRef<YouTubePlayer | null>(null);
   const playerSecondsRef = useRef(0);
+  const requestedPlaybackRef = useRef(false);
   const canSearch = courseTopic.length >= 2;
   const liveSearch = trpc.liveSearch.search.useQuery(
     { query: canSearch ? courseTopic : "learning" },
@@ -154,24 +164,27 @@ export default function Course() {
   const courseProgress = courseLessons.length ? Math.round((completedCount / courseLessons.length) * 100) : 0;
   const activeNotes = activeLesson ? learningRecord.notes.filter(note => note.lessonId === activeLesson.id) : [];
 
-  const postPlayerCommand = (func: string, args: unknown[] = []) => {
-    playerFrameRef.current?.contentWindow?.postMessage(
-      JSON.stringify({ event: "command", func, args }),
-      "https://www.youtube-nocookie.com",
-    );
-  };
-
   const setPlayerPlayback = (shouldPlay: boolean) => {
-    postPlayerCommand(shouldPlay ? "playVideo" : "pauseVideo");
-    setIsPlaying(shouldPlay);
-    setPlayerStatus(shouldPlay ? "Playing lesson." : "Lesson paused.");
+    requestedPlaybackRef.current = shouldPlay;
+    const player = playerRef.current;
+    if (!player) {
+      setIsPlaying(false);
+      setPlayerStatus(shouldPlay ? "Preparing the lesson player…" : "Lesson paused.");
+      return;
+    }
+    shouldPlay ? player.playVideo() : player.pauseVideo();
+    setPlayerStatus(shouldPlay ? "Starting lesson…" : "Lesson paused.");
   };
 
   const togglePlayback = () => setPlayerPlayback(!isPlaying);
 
   const seekBy = (seconds: number) => {
     const nextSecond = Math.max(0, playerSecondsRef.current + seconds);
-    postPlayerCommand("seekTo", [nextSecond, true]);
+    if (!playerRef.current) {
+      setPlayerStatus("Preparing the lesson player…");
+      return;
+    }
+    playerRef.current.seekTo(nextSecond, true);
     setPlayerSeconds(nextSecond);
     setPlayerStatus(seconds < 0 ? "Moved back 5 seconds." : "Moved forward 5 seconds.");
   };
@@ -196,9 +209,84 @@ export default function Course() {
 
   useEffect(() => {
     if (!isPlaying) return;
-    const timer = window.setInterval(() => setPlayerSeconds(seconds => seconds + 1), 1_000);
+    const timer = window.setInterval(() => {
+      const seconds = playerRef.current?.getCurrentTime();
+      if (typeof seconds === "number" && Number.isFinite(seconds)) setPlayerSeconds(seconds);
+    }, 500);
     return () => window.clearInterval(timer);
   }, [isPlaying]);
+
+  useEffect(() => {
+    const host = playerHostRef.current;
+    const videoId = activeLesson ? getYouTubeVideoId(activeLesson.embedUrl) : null;
+    if (!host || !videoId) return;
+
+    let disposed = false;
+    let mountedPlayer: YouTubePlayer | null = null;
+    playerRef.current?.destroy();
+    playerRef.current = null;
+    host.replaceChildren();
+
+    void loadYouTubeIframeApi()
+      .then(YT => {
+        if (disposed) return;
+        mountedPlayer = new YT.Player(host, {
+          videoId,
+          width: "100%",
+          height: "100%",
+          host: getYouTubeEmbedHost(activeLesson.embedUrl),
+          playerVars: createManagedPlayerVars(window.location.origin),
+          events: {
+            onReady: event => {
+              if (disposed) {
+                event.target.destroy();
+                return;
+              }
+              playerRef.current = event.target;
+              host.querySelector("iframe")?.setAttribute("tabindex", "-1");
+              if (requestedPlaybackRef.current) event.target.playVideo();
+              else setPlayerStatus("Lesson ready. Press Play when you are ready.");
+            },
+            onStateChange: event => {
+              if (event.data === 1) {
+                setIsPlaying(true);
+                setPlayerStatus("Playing lesson.");
+              } else if (event.data === 2) {
+                setIsPlaying(false);
+                setPlayerStatus("Lesson paused.");
+              } else if (event.data === 3) {
+                setIsPlaying(false);
+                setPlayerStatus("Buffering lesson…");
+              } else if (event.data === 5) {
+                setIsPlaying(false);
+                if (requestedPlaybackRef.current) {
+                  window.setTimeout(() => {
+                    if (!disposed && playerRef.current === event.target && requestedPlaybackRef.current) event.target.playVideo();
+                  }, 150);
+                } else {
+                  setPlayerStatus("Lesson ready. Press Play when you are ready.");
+                }
+              } else if (event.data === 0) {
+                setIsPlaying(false);
+                setPlayerStatus("Lesson finished. Mark it complete when you are ready to continue.");
+              }
+            },
+            onError: event => {
+              requestedPlaybackRef.current = false;
+              setIsPlaying(false);
+              setPlayerStatus(describeYouTubePlayerError(event.data));
+            },
+          },
+        });
+      })
+      .catch(() => setPlayerStatus("The lesson player could not load. Check your connection and try again."));
+
+    return () => {
+      disposed = true;
+      mountedPlayer?.destroy();
+      if (playerRef.current === mountedPlayer) playerRef.current = null;
+    };
+  }, [activeLesson?.id]);
 
   useEffect(() => {
     const syncFullscreenState = () => setIsFullscreen(isFullscreenTarget(playerSurfaceRef.current, document.fullscreenElement));
@@ -228,6 +316,7 @@ export default function Course() {
     setIsPlaying(false);
     setPlayerSeconds(0);
     setPlayerStatus(null);
+    requestedPlaybackRef.current = false;
     setShowRecall(false);
     setAutoAdvanceTarget(null);
     setLearningReady(false);
@@ -274,7 +363,8 @@ export default function Course() {
         setActiveIndex(autoAdvanceTarget);
         setLearningRecord(record => ({ ...record, activeLessonId: targetLesson.id }));
         setPlayerSeconds(0);
-        setIsPlaying(true);
+        setIsPlaying(false);
+        requestedPlaybackRef.current = true;
         setShowRecall(false);
       }
       setAutoAdvanceTarget(null);
@@ -296,7 +386,8 @@ export default function Course() {
     setLearningRecord(record => ({ ...record, activeLessonId: lesson.id }));
     setPlayerSeconds(0);
     setPlayerStatus(null);
-    setIsPlaying(play);
+    setIsPlaying(false);
+    requestedPlaybackRef.current = play;
     setShowRecall(false);
     setAutoAdvanceTarget(null);
   };
@@ -367,7 +458,7 @@ export default function Course() {
             <div className="min-w-0 xl:sticky xl:top-6 xl:self-start">
               <div className="overflow-hidden border border-[#2A2B29] bg-[#171817] shadow-[0_18px_38px_rgba(27,29,28,0.16)]">
                 <div ref={playerSurfaceRef} className="relative aspect-video overflow-hidden bg-black [&:fullscreen]:h-screen [&:fullscreen]:w-screen [&:fullscreen]:aspect-auto">
-                  <iframe ref={playerFrameRef} className="pointer-events-none h-full w-full" src={`${activeLesson.embedUrl}&modestbranding=1&controls=0&disablekb=1&fs=0&playsinline=1&enablejsapi=1`} title={activeLesson.title} sandbox="allow-same-origin allow-scripts allow-presentation" />
+                  <div ref={playerHostRef} aria-label={`${activeLesson.title} video player`} className="pointer-events-none h-full w-full" />
                   {!isPlaying ? <button type="button" onClick={() => setPlayerPlayback(true)} className="absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/20 text-white transition"><Play className="h-10 w-10" /></button> : null}
                   <div className="absolute right-3 top-3 z-40 flex max-w-[calc(100%-1.5rem)] flex-wrap justify-end gap-2">
                     <button type="button" onClick={() => seekBy(-5)} className="inline-flex h-9 items-center gap-1 bg-white px-2.5 text-xs font-semibold text-[#242523] shadow-sm transition hover:bg-[#F0F1F2]">-5s</button>
