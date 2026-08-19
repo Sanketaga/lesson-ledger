@@ -3,7 +3,7 @@ export type SequencedLesson = {
   title: string;
 };
 
-const COMPLETE_COURSE_TITLE = /\b(?:full course|all (?:the )?basics|\b(?:learn|learned)\b.*?\bin\s+\d+\s+(?:minutes?|hours?)|\d+\s+beginner lessons)\b/i;
+const COMPLETE_COURSE_TITLE = /\b(?:full(?:\s+\w+){0,2}\s+course|all (?:the )?basics|\b(?:learn|learned)\b.*?\bin\s+\d+\s+(?:minutes?|hours?)|\d+\s+beginner lessons)\b/i;
 
 /** Keeps one course overview when vetted catalog and live discovery return overlapping complete tracks. */
 export function dedupeCourseSequence<T extends SequencedLesson>(lessons: T[]) {

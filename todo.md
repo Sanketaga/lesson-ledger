@@ -96,5 +96,6 @@
 - [ ] Generalize educational intent expansion, media exclusion, and lesson sequencing beyond language topics.
 - [ ] Remove redundant full-course tracks and first-person learning advice from generalized topic courses.
 - [ ] Replace one-shot broad retrieval with topic-agnostic stage-specific discovery so arbitrary subjects can form complete foundations-to-practice courses.
+- [ ] Classify plural project/tutorial lessons as applied work and deduplicate extended complete-course title variants across source results.
 - [ ] Test representative technical, academic, practical, and language learning topics for coherent course assembly.
 - [ ] Publish and verify the topic-agnostic learning-course curation flow on the deployed site.

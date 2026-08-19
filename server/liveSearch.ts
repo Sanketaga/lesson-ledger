@@ -28,7 +28,7 @@ const FOUNDATION_STAGE = /\b(?:what is|overview|introduction|intro|fundamentals|
 const BEGINNER_STAGE = /\b(?:beginner(?:s)?|basics|basic|first lesson|lesson\s*(?:1|one)|from scratch|getting started|setup|installation)\b/i;
 const CORE_CONCEPT_STAGE = /\b(?:vocabulary|words|phrases|syntax|concepts?|principles?|theory|tools?|methods?)\b/i;
 const STRUCTURED_SKILL_STAGE = /\b(?:grammar|verbs|sentence|reading|writing|examples?|techniques?)\b/i;
-const APPLIED_STAGE = /\b(?:tutorial|walkthrough|recipe|project|build|exercise|practice|conversation|speaking|fluency|example|technique)\b/i;
+const APPLIED_STAGE = /\b(?:tutorials?|walkthroughs?|recipes?|projects?|build|exercise|practice|conversation|speaking|fluency|examples?|techniques?)\b/i;
 
 /** Converts a broad topic into a provider query that expresses the learner's educational goal. */
 export function buildLearningIntent(query: string): LearningIntent {
