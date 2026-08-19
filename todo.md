@@ -54,3 +54,8 @@
 - [x] Inspect the project repository state and choose a private GitHub repository target for the Vercel handoff.
 - [x] Verify the Vercel-ready release files are safe to publish and commit the latest state.
 - [x] Create and push a private GitHub repository, then provide its repository URL and Vercel import handoff steps.
+- [x] Reproduce and diagnose course creation for natural-language learning requests such as “I want to learn Python.”
+- [x] Normalize instructional query phrasing and preserve reliable catalog/live-search fallback behavior.
+- [x] Add automated coverage for natural-language search requests and validate the focused-course result.
+- [x] Ensure the shared natural-language query test is included in the Vitest suite.
+- [ ] Push the verified search repair to the private GitHub repository for the connected Vercel workflow.

@@ -1,3 +1,5 @@
+import { normalizeLearningQuery } from "@shared/learningQuery";
+
 export type Topic =
   | "All"
   | "Mathematics"
@@ -87,13 +89,24 @@ export const catalog: CatalogVideo[] = [
     note: "Trace the early ideas and machines that shaped modern computing.",
     ...youtube("O5nskjZ_GoI"),
   },
+  {
+    id: "python-beginners",
+    title: "Learn Python - Full Course for Beginners",
+    channel: "freeCodeCamp.org",
+    topic: "Technology",
+    level: "Foundational",
+    duration: "4 hr 26 min",
+    note: "Build a practical foundation in Python syntax, data structures, functions, and object-oriented programming.",
+    ...youtube("rfscVS0vtbw"),
+  },
 ];
 
 export function filterCatalog(topic: Topic, searchTerm: string) {
-  const needle = searchTerm.trim().toLowerCase();
+  const needle = normalizeLearningQuery(searchTerm);
   return catalog.filter((video) => {
     const topicMatches = topic === "All" || video.topic === topic;
-    const textMatches = !needle || [video.title, video.channel, video.topic, video.note, video.level].join(" ").toLowerCase().includes(needle);
+    const searchText = [video.title, video.channel, video.topic, video.note, video.level].join(" ").toLowerCase();
+    const textMatches = !needle || searchText.includes(needle) || needle.split(" ").every(word => searchText.includes(word));
     return topicMatches && textMatches;
   });
 }
@@ -103,7 +116,7 @@ export const topics: Array<{ name: Topic; count: number; accent: string }> = [
   { name: "Mathematics", count: 2, accent: "bg-[#4A648D]" },
   { name: "Science", count: 1, accent: "bg-[#B85C45]" },
   { name: "History", count: 1, accent: "bg-[#9B6B31]" },
-  { name: "Technology", count: 2, accent: "bg-[#6C597D]" },
+  { name: "Technology", count: 3, accent: "bg-[#6C597D]" },
 ];
 
 export const trailCovers = [

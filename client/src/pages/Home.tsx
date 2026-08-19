@@ -32,6 +32,7 @@ import {
   filterCatalog,
   type CatalogVideo,
 } from "@/lib/catalog";
+import { normalizeLearningQuery } from "@shared/learningQuery";
 import { trpc } from "@/lib/trpc";
 import { useLocation } from "wouter";
 
@@ -153,7 +154,7 @@ export default function Home() {
     [searchTerm],
   );
 
-  const normalizedSearch = searchTerm.trim();
+  const normalizedSearch = normalizeLearningQuery(searchTerm);
   const shouldUseLiveSearch = normalizedSearch.length >= 2 && visibleCatalog.length === 0;
   const liveSearch = trpc.liveSearch.search.useQuery(
     { query: shouldUseLiveSearch ? normalizedSearch : "learning" },
@@ -195,7 +196,7 @@ export default function Home() {
       setImportOpen(true);
       return;
     }
-    setLocation(`/learn/${encodeURIComponent(value)}`);
+    setLocation(`/learn/${encodeURIComponent(normalizeLearningQuery(value) || value)}`);
   };
 
   const importVideo = async () => {

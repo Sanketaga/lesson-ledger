@@ -12,4 +12,15 @@ describe("bundled catalog search", () => {
       }),
     ]));
   });
+
+  it("matches conversational learning requests against the local Python fallback", () => {
+    const results = filterCatalog("All", "I want to learn Python");
+
+    expect(results).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        id: "python-beginners",
+        title: "Learn Python - Full Course for Beginners",
+      }),
+    ]));
+  });
 });

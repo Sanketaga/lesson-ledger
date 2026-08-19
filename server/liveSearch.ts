@@ -1,3 +1,5 @@
+import { normalizeLearningQuery } from "../shared/learningQuery";
+
 type SearchProvider = "invidious" | "piped";
 
 export type LiveSearchResult = {
@@ -111,7 +113,7 @@ async function fetchJson(url: string) {
 }
 
 export async function searchEducationalVideos(query: string): Promise<LiveSearchResponse> {
-  const normalizedQuery = query.trim();
+  const normalizedQuery = normalizeLearningQuery(query) || query.trim();
   if (!normalizedQuery) return { status: "empty", source: null, results: [] };
   const encodedQuery = encodeURIComponent(normalizedQuery);
   const [invidiousPayloads, pipedPayloads] = await Promise.all([

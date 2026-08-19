@@ -14,6 +14,7 @@ import {
   type LearningRecord,
 } from "@/lib/learning";
 import { trpc } from "@/lib/trpc";
+import { normalizeLearningQuery } from "@shared/learningQuery";
 import {
   ArrowLeft,
   ArrowRight,
@@ -73,6 +74,7 @@ export default function Course() {
   const params = useParams<{ query: string }>();
   const [, setLocation] = useLocation();
   const courseQuery = decodeCourseQuery(params.query || "").trim();
+  const courseTopic = normalizeLearningQuery(courseQuery) || courseQuery;
   const [nextQuery, setNextQuery] = useState(courseQuery);
   const [activeIndex, setActiveIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -90,14 +92,14 @@ export default function Course() {
   const playerFrameRef = useRef<HTMLIFrameElement>(null);
   const playerSurfaceRef = useRef<HTMLDivElement>(null);
   const playerSecondsRef = useRef(0);
-  const canSearch = courseQuery.length >= 2;
+  const canSearch = courseTopic.length >= 2;
   const liveSearch = trpc.liveSearch.search.useQuery(
-    { query: canSearch ? courseQuery : "learning" },
+    { query: canSearch ? courseTopic : "learning" },
     { enabled: canSearch, staleTime: 60_000, retry: 0 },
   );
 
   const courseLessons = useMemo<CourseLesson[]>(() => {
-    const localLessons = filterCatalog("All", courseQuery).map(fromCatalog);
+    const localLessons = filterCatalog("All", courseTopic).map(fromCatalog);
     const localVideoIds = new Set(localLessons.map(lesson => lesson.embedUrl));
     const liveLessons = (liveSearch.data?.results ?? [])
       .map(result => ({
@@ -112,7 +114,7 @@ export default function Course() {
       }))
       .filter(lesson => !localVideoIds.has(lesson.embedUrl));
     return [...localLessons, ...liveLessons];
-  }, [courseQuery, liveSearch.data]);
+  }, [courseTopic, liveSearch.data]);
 
   const activeLesson = courseLessons[activeIndex];
   const completedCount = courseLessons.filter(lesson => learningRecord.completedLessonIds.includes(lesson.id)).length;
@@ -197,23 +199,23 @@ export default function Course() {
     setAutoAdvanceTarget(null);
     setLearningReady(false);
     try {
-      const stored = localStorage.getItem(learningStorageKey(courseQuery));
+      const stored = localStorage.getItem(learningStorageKey(courseTopic));
       setLearningRecord(stored ? mergeLearningRecord(JSON.parse(stored)) : EMPTY_LEARNING_RECORD);
     } catch {
       setLearningRecord(EMPTY_LEARNING_RECORD);
     } finally {
       setLearningReady(true);
     }
-  }, [courseQuery]);
+  }, [courseTopic]);
 
   useEffect(() => {
     if (!learningReady) return;
     try {
-      localStorage.setItem(learningStorageKey(courseQuery), JSON.stringify(learningRecord));
+      localStorage.setItem(learningStorageKey(courseTopic), JSON.stringify(learningRecord));
     } catch {
       // Storage remains optional; students can still use the current learning session.
     }
-  }, [courseQuery, learningReady, learningRecord]);
+  }, [courseTopic, learningReady, learningRecord]);
 
   useEffect(() => {
     if (!learningReady || !learningRecord.activeLessonId) return;
@@ -250,7 +252,7 @@ export default function Course() {
   }, [autoAdvanceRemaining, autoAdvanceTarget, courseLessons]);
 
   const buildCourse = () => {
-    const normalized = nextQuery.trim();
+    const normalized = normalizeLearningQuery(nextQuery) || nextQuery.trim();
     if (normalized.length >= 2) setLocation(`/learn/${encodeURIComponent(normalized)}`);
   };
 
@@ -316,7 +318,7 @@ export default function Course() {
           <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#85888D]">Focused course</p>
           <div className="mt-4 flex flex-col justify-between gap-7 lg:flex-row lg:items-end">
             <div>
-              <h1 className="max-w-3xl font-display text-5xl leading-[0.9] tracking-[-0.05em] text-[#252624] sm:text-6xl lg:text-7xl">{courseQuery || "Your next course"}</h1>
+              <h1 className="max-w-3xl font-display text-5xl leading-[0.9] tracking-[-0.05em] text-[#252624] sm:text-6xl lg:text-7xl">{courseTopic || "Your next course"}</h1>
               <p className="mt-4 max-w-xl text-sm leading-6 text-[#70737A]">One ordered path, a clear learning goal, and just enough support to help the lesson stick.</p>
             </div>
             <div className="w-full max-w-lg border border-[#D8DBDE] bg-white p-1.5 shadow-[0_12px_24px_rgba(42,45,48,0.04)]">

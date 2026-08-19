@@ -106,6 +106,10 @@ The native share request is made immediately in the Snapshot button’s click ge
 
 The Vercel release structure separates static browser assets from dynamic API routes. The Vite build writes the course application to `dist/public`, while a catch-all `/api/*` Vercel Node Function imports the same Express app used in local development. This retains same-origin tRPC and OAuth paths without exposing a fixed listening port. Platform-managed OAuth, database, and Forge credentials still require externally valid replacements before a Vercel release can authenticate users or access platform-specific storage services.
 
+## Natural-Language Learning Requests
+
+Students should be able to type the way they speak. The course command normalizes common instructional framing—such as “I want to learn Python” or “teach me intro to Python for beginners”—to the concise search topic `python`. The same normalized topic drives the local catalog, live-provider request, course title, and browser-stored learning record. A vetted Python course now guarantees a useful local starting point even when third-party live-search providers are unavailable.
+
 Browser validation confirms that clicking **Snapshot** immediately generated a local preview, downloaded the image, and displayed the success message without opening any tab-sharing permission picker. The preview and repeat-download action remain inside the focused course.
 
 The repaired capture completed successfully: the player reported “Screenshot ready and downloaded,” displayed an in-page preview, and exposed a **Download again** action. The visible rewind control also returned “Moved back 5 seconds,” confirming both five-second directions now respond within the focused course.
