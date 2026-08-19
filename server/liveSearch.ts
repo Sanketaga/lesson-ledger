@@ -75,14 +75,22 @@ export type LiveSearchResponse = {
 };
 
 function curriculumStage(result: LiveSearchResult) {
-  if (typeof result.curriculumStageHint === "number") return result.curriculumStageHint;
   const text = `${result.title} ${result.note}`;
-  if (FOUNDATION_STAGE.test(text)) return 0;
-  if (CORE_CONCEPT_STAGE.test(text)) return 2;
-  if (STRUCTURED_SKILL_STAGE.test(text)) return 3;
-  if (APPLIED_STAGE.test(text)) return 4;
-  if (BEGINNER_STAGE.test(text)) return 1;
-  return 5;
+  const semanticStage = FOUNDATION_STAGE.test(text)
+    ? 0
+    : CORE_CONCEPT_STAGE.test(text)
+      ? 2
+      : STRUCTURED_SKILL_STAGE.test(text)
+        ? 3
+        : APPLIED_STAGE.test(text)
+          ? 4
+          : BEGINNER_STAGE.test(text)
+            ? 1
+            : 5;
+  const queryStage = result.curriculumStageHint;
+  if (typeof queryStage !== "number") return semanticStage;
+  if (semanticStage === 0 || semanticStage === 5) return queryStage;
+  return Math.max(queryStage, semanticStage);
 }
 
 const CURRICULUM_STAGE_LABELS = [

@@ -133,6 +133,15 @@ describe("learning-intent course curation", () => {
     ]);
   });
 
+  it("keeps explicit skills and practice signals when an early discovery query returns them", () => {
+    const curated = curateLearningResults([
+      { ...result("skills", "How to master basic cooking skills"), curriculumStageHint: 1 },
+      { ...result("practice", "Calculus practice problems walkthrough"), curriculumStageHint: 1 },
+    ], buildLearningIntent("Cooking"));
+
+    expect(curated.map(item => item.learningStage)).toEqual(["Structured skills", "Applied practice"]);
+  });
+
   it("searches Hindi as a language-learning request and never uses provider songs or headlines to fill the course", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("api.piped.private.coffee")) {
