@@ -1,0 +1,5 @@
+Trigger redeploy: removed accidental ellipsis from client/src/pages/Home.tsx and restored full file to fix BABEL_PARSER_SYNTAX_ERROR.
+
+If Vercel still shows the same build error, please redeploy or check for caching issues. This file's commit SHA fixing the issue: ed0c5d164636875cb60980736f585beebd7135f3
+
+Timestamp: 2026-08-19T09:30:00Z
