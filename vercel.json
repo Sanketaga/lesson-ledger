@@ -2,9 +2,27 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "buildCommand": "pnpm run vercel-build",
   "outputDirectory": "dist/public",
+  "functions": {
+    "api/**/*.ts": {
+      "runtime": "nodejs22.x",
+      "maxDuration": 30
+    }
+  },
   "rewrites": [
     {
-      "source": "/:path((?!api/).*)",
+      "source": "/api/trpc/:path*",
+      "destination": "/api/trpc/[...path]"
+    },
+    {
+      "source": "/api/oauth/callback",
+      "destination": "/api/oauth/callback"
+    },
+    {
+      "source": "/manus-storage/:path*",
+      "destination": "/api/manus-storage/[...path]"
+    },
+    {
+      "source": "/:path*",
       "destination": "/index.html"
     }
   ]

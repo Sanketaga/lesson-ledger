@@ -73,3 +73,7 @@
 - [x] Preserve the verified focused landing experience and in-site course navigation while repairing the Vercel source revision.
 - [x] Restore a valid Home.tsx and add regression coverage for the landing-page module.
 - [x] Run the exact Vercel build, commit the repair, and synchronize GitHub main for redeployment.
+- [x] Trace the failing LiveSearch request on the deployed Vercel site and identify the serverless or upstream cause.
+- [x] Replace the production-generic API route with explicit Vercel function paths for tRPC and OAuth so `/api/trpc/*` cannot 404.
+- [x] Implement a deployment-safe live discovery fallback and add coverage for the failure mode.
+- [ ] Validate the repaired LiveSearch on the deployed site and push the confirmed fix to GitHub main.

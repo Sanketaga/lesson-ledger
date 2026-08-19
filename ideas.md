@@ -118,6 +118,10 @@ When those community relays are all down or blocked, Lesson Ledger makes a final
 
 Implementation research sources: [Piped API documentation](https://docs.piped.video/docs/api-documentation/) documents unauthenticated instance APIs and recommends dynamic instance awareness; its [public-instance list](https://raw.githubusercontent.com/TeamPiped/documentation/refs/heads/main/content/docs/public-instances/index.md) identified the tested Piped relays. The [Invidious API documentation](https://docs.invidious.io/api/) confirms the compatible `/api/v1/search` format used as a parallel fallback.
 
+## Vercel API Routing Recovery
+
+The production LiveSearch failure was traced to a 404 from `/api/trpc/liveSearch.search`, which means the issue is route delivery rather than an empty provider response. The [Vercel Vite guide](https://vercel.com/docs/frameworks/frontend/vite) and [rewrite documentation](https://vercel.com/docs/routing/rewrites) are the references for static-output and function routing. The deployment configuration must ensure a Vite SPA fallback never consumes `/api/*` before the catch-all serverless handler runs.
+
 Browser validation confirms that clicking **Snapshot** immediately generated a local preview, downloaded the image, and displayed the success message without opening any tab-sharing permission picker. The preview and repeat-download action remain inside the focused course.
 
 The repaired capture completed successfully: the player reported “Screenshot ready and downloaded,” displayed an in-page preview, and exposed a **Download again** action. The visible rewind control also returned “Moved back 5 seconds,” confirming both five-second directions now respond within the focused course.
