@@ -96,6 +96,24 @@ describe("learning-intent course curation", () => {
     expect(curateLearningResults([advice, languageDetour, cookingLesson], buildLearningIntent("Cooking")).map(item => item.videoId)).toEqual(["lesson"]);
   });
 
+  it("sequences representative academic and practical topics through learning stages", () => {
+    const calculus = curateLearningResults([
+      result("practice", "Calculus practice problems walkthrough"),
+      result("skills", "Calculus derivative techniques and skills"),
+      result("basics", "Calculus basics for beginners"),
+      result("foundation", "What is calculus? Introduction and fundamentals"),
+    ], buildLearningIntent("Calculus"));
+    const cooking = curateLearningResults([
+      result("practice", "Cooking practice: build a weeknight meal"),
+      result("skills", "Essential cooking skills and techniques"),
+      result("basics", "Cooking basics for beginners"),
+      result("foundation", "Introduction to cooking fundamentals"),
+    ], buildLearningIntent("Cooking"));
+
+    expect(calculus.map(item => item.learningStage)).toEqual(["Foundations", "Getting started", "Structured skills", "Applied practice"]);
+    expect(cooking.map(item => item.learningStage)).toEqual(["Foundations", "Getting started", "Structured skills", "Applied practice"]);
+  });
+
   it("searches Hindi as a language-learning request and never uses provider songs or headlines to fill the course", async () => {
     vi.stubGlobal("fetch", vi.fn().mockImplementation(async (url: string) => {
       if (url.includes("api.piped.private.coffee")) {
