@@ -77,3 +77,4 @@
 - [x] Replace the production-generic API route with explicit Vercel function paths for tRPC and OAuth so `/api/trpc/*` cannot 404.
 - [x] Implement a deployment-safe live discovery fallback and add coverage for the failure mode.
 - [ ] Validate the repaired LiveSearch on the deployed site and push the confirmed fix to GitHub main.
+- [x] Remove the invalid Vercel function runtime override that is blocking deployment of the repaired API routes.
