@@ -81,6 +81,22 @@ describe("Course timestamped notes", () => {
     });
   });
 
+  it("deletes an individual saved timestamped note and persists the removal", async () => {
+    const user = userEvent.setup();
+    render(<Course />);
+
+    await user.type(await screen.findByLabelText("Note for the current lesson"), "Remove this setup reminder.");
+    await user.click(screen.getByRole("button", { name: "Save timestamped note" }));
+    expect(await screen.findByText("Remove this setup reminder.")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Delete timestamped note at 0:00" }));
+
+    expect(screen.queryByText("Remove this setup reminder.")).toBeNull();
+    await waitFor(() => {
+      const stored = JSON.parse(localStorage.getItem("lesson-ledger:learning:python") || "{}");
+      expect(stored.notes).toEqual([]);
+    });
+  });
+
   it("keeps a saved note visible when live discovery replaces the video for the same roadmap module", async () => {
     mocks.liveSearchData = liveCourse("initial-setup-video");
     const user = userEvent.setup();

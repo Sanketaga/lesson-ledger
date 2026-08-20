@@ -120,7 +120,8 @@
 - [x] Add duplicate-course avoidance regressions for roadmap-first technical, academic, practical, and language courses.
 - [x] Push, deploy, and verify fully populated roadmap-first courses in production.
 - [x] Capture a stable, on-record deployed player view showing `Playing lesson.` and a non-zero elapsed time without refreshing the course.
-- [ ] Capture and preserve a stable deployed browser view showing `Playing lesson.` with a non-zero Lesson player time without refreshing the course.
+- [x] Capture and preserve a stable deployed browser view showing `Playing lesson.` with a non-zero Lesson player time without refreshing the course.
+- [ ] Capture and preserve a stable production browser view showing `Playing lesson.` with a non-zero Lesson player time on the same page state, and store the evidence with the deployed build reference.
 - [x] Diagnose why timestamped notes cannot be created or displayed in the course workspace.
 - [x] Repair timestamp capture and note-save behavior for the active lesson.
 - [x] Add regression coverage and verify timestamped notes in the browser.
@@ -149,3 +150,7 @@
 - [x] Append each note timestamp to its exported video link so opening the link begins at the recorded moment.
 - [x] Add regression coverage for timestamp-link generation across TXT, DOC, PDF, and PNG exports.
 - [x] Deploy and verify timestamp-aware video links in production.
+- [x] Diagnose and repair timestamp capture so each note saves at the exact selected or current player time.
+- [x] Add a visible delete control for each saved timestamped note and persist the removal.
+- [ ] Add regression coverage and browser verification for exact timestamp saving and note deletion.
+- [ ] Deploy and verify the timestamp-and-delete repair in production.

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completeLesson, formatTimestamp, learningNoteScopeId, learningStorageKey, mergeLearningRecord, timestampToSeconds } from "./learning";
+import { completeLesson, formatTimestamp, learningNoteScopeId, learningStorageKey, mergeLearningRecord, resolveSavedNoteTimestamp, secondsToNoteTimestamp, timestampToSeconds } from "./learning";
 
 describe("student learning record", () => {
   it("hydrates safe defaults while retaining a student’s saved choices", () => {
@@ -25,6 +25,13 @@ describe("student learning record", () => {
     expect(formatTimestamp("around four minutes")).toBe("00:00");
     expect(timestampToSeconds("4:05")).toBe(245);
     expect(timestampToSeconds("1:02:03")).toBe(3723);
+  });
+
+  it("uses the player’s live second by default but preserves an explicitly entered timestamp", () => {
+    expect(secondsToNoteTimestamp(75.9)).toBe("1:15");
+    expect(secondsToNoteTimestamp(3723)).toBe("1:02:03");
+    expect(resolveSavedNoteTimestamp("00:00", false, 75.9)).toBe("1:15");
+    expect(resolveSavedNoteTimestamp("2:05", true, 75.9)).toBe("2:05");
   });
 
 });

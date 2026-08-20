@@ -25,6 +25,7 @@ import {
   learningNoteScopeId,
   learningStorageKey,
   mergeLearningRecord,
+  resolveSavedNoteTimestamp,
   timestampToSeconds,
   type LearningRecord,
 } from "@/lib/learning";
@@ -51,6 +52,7 @@ import {
   Sparkles,
   Timer,
   RotateCcw,
+  Trash2,
 } from "lucide-react";
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "wouter";
@@ -105,6 +107,7 @@ export default function Course() {
   const [learningReady, setLearningReady] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteTimestamp, setNoteTimestamp] = useState("00:00");
+  const [noteTimestampIsManual, setNoteTimestampIsManual] = useState(false);
   const [noteFeedback, setNoteFeedback] = useState<string | null>(null);
   const [notesExportFormat, setNotesExportFormat] = useState<NotesExportFormat>("pdf");
   const [isExportingNotes, setIsExportingNotes] = useState(false);
@@ -403,6 +406,7 @@ export default function Course() {
     if (!activeLesson) return;
     setRecallDraft(learningRecord.recallAnswers[activeLesson.id] || "");
     setNoteTimestamp("00:00");
+    setNoteTimestampIsManual(false);
     setNoteFeedback(null);
   }, [activeLesson?.id, learningRecord.recallAnswers]);
 
@@ -458,7 +462,9 @@ export default function Course() {
       setNoteFeedback("Write a note before saving it.");
       return;
     }
-    const savedTimestamp = formatTimestamp(noteTimestamp);
+    const livePlayerSeconds = playerRef.current?.getCurrentTime();
+    const currentPlayerSeconds = typeof livePlayerSeconds === "number" && Number.isFinite(livePlayerSeconds) ? livePlayerSeconds : playerSecondsRef.current;
+    const savedTimestamp = resolveSavedNoteTimestamp(noteTimestamp, noteTimestampIsManual, currentPlayerSeconds);
     setLearningRecord(record => ({
       ...record,
       notes: [...record.notes, {
@@ -473,6 +479,8 @@ export default function Course() {
       }],
     }));
     setNoteDraft("");
+    setNoteTimestamp(savedTimestamp);
+    setNoteTimestampIsManual(false);
     setNoteFeedback(`Saved at ${savedTimestamp}.`);
     toast.success("Timestamped note saved", { description: `Attached to ${savedTimestamp} in this lesson.` });
   };
@@ -494,7 +502,16 @@ export default function Course() {
   };
 
   const captureCurrentTimestamp = () => {
-    setNoteTimestamp(formatPlayerElapsedTime(playerSeconds));
+    const livePlayerSeconds = playerRef.current?.getCurrentTime();
+    const currentPlayerSeconds = typeof livePlayerSeconds === "number" && Number.isFinite(livePlayerSeconds) ? livePlayerSeconds : playerSecondsRef.current;
+    setNoteTimestamp(resolveSavedNoteTimestamp("", false, currentPlayerSeconds));
+    setNoteTimestampIsManual(false);
+  };
+
+  const deleteNote = (noteId: string) => {
+    setLearningRecord(record => ({ ...record, notes: record.notes.filter(note => note.id !== noteId) }));
+    setNoteFeedback("Timestamped note deleted.");
+    toast.success("Timestamped note deleted");
   };
 
   const seekToNoteTimestamp = (timestamp: string) => {
@@ -612,13 +629,13 @@ export default function Course() {
                   <label className="text-xs font-semibold text-[#4F5357]" htmlFor="lesson-note">Note for the current lesson</label>
                   <textarea id="lesson-note" value={noteDraft} onChange={event => setNoteDraft(event.target.value)} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); saveNote(); } }} placeholder="Write what you want to remember…" className="min-h-24 w-full resize-y border border-[#D8DBDE] bg-[#FBFBFA] p-3 text-sm leading-6 outline-none transition focus:border-[#252624]" />
                   <div className="flex flex-col gap-2 sm:flex-row">
-                    <label className="flex min-w-0 flex-1 items-center gap-2 border border-[#D8DBDE] bg-[#FBFBFA] px-3 py-2 text-sm text-[#555954]"><Timer className="h-4 w-4 shrink-0" /><span className="sr-only">Timestamp</span><input aria-label="Note timestamp" value={noteTimestamp} onChange={event => setNoteTimestamp(event.target.value)} className="min-w-0 flex-1 bg-transparent font-mono outline-none" inputMode="numeric" placeholder="00:00" /></label>
+                    <label className="flex min-w-0 flex-1 items-center gap-2 border border-[#D8DBDE] bg-[#FBFBFA] px-3 py-2 text-sm text-[#555954]"><Timer className="h-4 w-4 shrink-0" /><span className="sr-only">Timestamp</span><input aria-label="Note timestamp" value={noteTimestamp} onChange={event => { setNoteTimestamp(event.target.value); setNoteTimestampIsManual(true); }} className="min-w-0 flex-1 bg-transparent font-mono outline-none" inputMode="numeric" placeholder="00:00" /></label>
                     <Button type="button" variant="outline" onClick={captureCurrentTimestamp} className="border-[#C7CCD1] bg-white text-xs">Use {formatPlayerElapsedTime(playerSeconds)}</Button>
                     <Button type="submit" className="bg-[#252624] text-xs text-white hover:bg-[#3A3B3A]">Save timestamped note</Button>
                   </div>
                 </form>
                 <div className="mt-4 flex flex-col gap-3 border-t border-[#E5E7E8] pt-4"><p role="status" aria-live="polite" className="text-xs leading-5 text-[#62676B]">{noteFeedback || "Your notes stay with this course in this browser."}</p><div className="flex flex-col gap-2 sm:flex-row"><label className="flex min-w-0 flex-1 items-center gap-2 border border-[#C7CCD1] bg-white px-3 py-2 text-xs font-semibold text-[#42464A]">Export format<select aria-label="Notes download format" value={notesExportFormat} onChange={event => setNotesExportFormat(event.target.value as NotesExportFormat)} className="min-w-0 flex-1 bg-transparent text-sm font-normal outline-none">{NOTES_EXPORT_FORMATS.map(format => <option key={format.value} value={format.value}>{format.label}</option>)}</select></label><Button type="button" variant="outline" onClick={() => void downloadNotes()} disabled={isExportingNotes} className="border-[#6B706D] bg-white text-xs text-[#252624] hover:bg-[#F1F2F1]">{isExportingNotes ? "Preparing export…" : `Download ${notesExportFormat.toUpperCase()}`}</Button></div></div>
-                {activeNotes.length > 0 ? <ol className="mt-6 divide-y divide-[#E5E7E8] border-t border-[#E5E7E8]">{activeNotes.map(note => <li key={note.id} className="py-4"><div className="flex items-start gap-3"><button type="button" onClick={() => seekToNoteTimestamp(note.timestamp)} className="shrink-0 border border-[#C7CCD1] bg-[#FBFBFA] px-2 py-1 font-mono text-xs font-semibold text-[#252624] transition hover:border-[#252624]">{note.timestamp}</button><p className="pt-0.5 text-sm leading-6 text-[#50545A]">{note.text}</p></div></li>)}</ol> : <p className="mt-5 border-t border-[#E5E7E8] pt-5 text-sm leading-6 text-[#777B80]">No notes for this lesson yet. Use the current timestamp or type your own, then save a note.</p>}
+                {activeNotes.length > 0 ? <ol className="mt-6 divide-y divide-[#E5E7E8] border-t border-[#E5E7E8]">{activeNotes.map(note => <li key={note.id} className="py-4"><div className="flex items-start gap-3"><button type="button" onClick={() => seekToNoteTimestamp(note.timestamp)} className="shrink-0 border border-[#C7CCD1] bg-[#FBFBFA] px-2 py-1 font-mono text-xs font-semibold text-[#252624] transition hover:border-[#252624]">{note.timestamp}</button><div className="min-w-0 flex-1"><p className="pt-0.5 text-sm leading-6 text-[#50545A]">{note.text}</p><button type="button" onClick={() => deleteNote(note.id)} aria-label={`Delete timestamped note at ${note.timestamp}`} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-[#8A3434] transition hover:text-[#5C2020]"><Trash2 className="h-3.5 w-3.5" /> Delete</button></div></div></li>)}</ol> : <p className="mt-5 border-t border-[#E5E7E8] pt-5 text-sm leading-6 text-[#777B80]">No notes for this lesson yet. Use the current timestamp or type your own, then save a note.</p>}
               </section>
             </aside>
           </section>

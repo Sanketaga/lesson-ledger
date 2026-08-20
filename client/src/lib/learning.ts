@@ -78,6 +78,22 @@ export function formatTimestamp(value: string) {
   return /^\d{1,2}:\d{2}(?::\d{2})?$/.test(trimmed) ? trimmed : "00:00";
 }
 
+/** Formats the player’s live time at second precision for a saved note. */
+export function secondsToNoteTimestamp(seconds: number) {
+  const safeSeconds = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0));
+  const hours = Math.floor(safeSeconds / 3600);
+  const minutes = Math.floor((safeSeconds % 3600) / 60);
+  const remainingSeconds = safeSeconds % 60;
+  return hours > 0
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainingSeconds).padStart(2, "0")}`
+    : `${minutes}:${String(remainingSeconds).padStart(2, "0")}`;
+}
+
+/** Preserves a student-entered timestamp; otherwise records the live player moment at save time. */
+export function resolveSavedNoteTimestamp(value: string, isManual: boolean, currentPlayerSeconds: number) {
+  return isManual ? formatTimestamp(value) : secondsToNoteTimestamp(currentPlayerSeconds);
+}
+
 /** Converts a displayed lesson timestamp into a player position in seconds. */
 export function timestampToSeconds(value: string) {
   const parts = formatTimestamp(value).split(":").map(Number);
