@@ -133,7 +133,9 @@
 - [x] Reproduce and repair the reported production timestamped-note save failure, including a reliable visible save action.
 - [x] Add a downloadable notes export containing the course topic, lesson title, direct video link, timestamp, and note text.
 - [x] Add automated coverage for note export formatting and browser verification for save plus download behavior.
-- [ ] Verify the form-based note save in the browser shows inline success feedback and the rendered note entry.
-- [ ] Trigger the browser download and confirm the exported file contains the lesson title, video link, timestamp, and note text.
-- [ ] Deploy and verify the latest form-based notes repair and export behavior in production.
-- [ ] Deploy and verify the repaired notes save flow and downloadable export in production.
+- [x] Verify the form-based note save in the browser shows inline success feedback and the rendered note entry.
+- [x] Trigger the browser download and confirm the exported file contains the lesson title, video link, timestamp, and note text.
+- [x] Deploy and verify the latest form-based notes repair and export behavior in production.
+- [x] Deploy and verify the repaired notes save flow and downloadable export in production.
+- [ ] Add an in-app Markdown export preview so students can inspect lesson links, timestamps, and note text before downloading.
+- [ ] Verify the previewed export matches the downloaded note content in production.

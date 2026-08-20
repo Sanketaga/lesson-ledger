@@ -106,6 +106,7 @@ export default function Course() {
   const [noteDraft, setNoteDraft] = useState("");
   const [noteTimestamp, setNoteTimestamp] = useState("00:00");
   const [noteFeedback, setNoteFeedback] = useState<string | null>(null);
+  const [showNotesPreview, setShowNotesPreview] = useState(false);
   const [recallDraft, setRecallDraft] = useState("");
   const [showRecall, setShowRecall] = useState(false);
   const [autoAdvanceTarget, setAutoAdvanceTarget] = useState<number | null>(null);
@@ -203,6 +204,7 @@ export default function Course() {
   const activeNotes = activeLesson && activeNoteScopeId
     ? learningRecord.notes.filter(note => note.lessonId === activeNoteScopeId || note.lessonId === activeLesson.id)
     : [];
+  const notesDownloadPreview = useMemo(() => formatNotesDownload(courseTopic, learningRecord.notes), [courseTopic, learningRecord.notes]);
   const playerGuard = getFocusedPlayerGuard(allowNativeStart);
 
   const setPlayerPlayback = (shouldPlay: boolean) => {
@@ -617,7 +619,8 @@ export default function Course() {
                     <Button type="submit" className="bg-[#252624] text-xs text-white hover:bg-[#3A3B3A]">Save timestamped note</Button>
                   </div>
                 </form>
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#E5E7E8] pt-4"><p role="status" aria-live="polite" className="text-xs leading-5 text-[#62676B]">{noteFeedback || "Your notes stay with this course in this browser."}</p><Button type="button" variant="outline" onClick={downloadNotes} className="border-[#6B706D] bg-white text-xs text-[#252624] hover:bg-[#F1F2F1]">Download notes (.md)</Button></div>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#E5E7E8] pt-4"><p role="status" aria-live="polite" className="text-xs leading-5 text-[#62676B]">{noteFeedback || "Your notes stay with this course in this browser."}</p><div className="flex flex-wrap gap-2"><Button type="button" variant="outline" onClick={() => setShowNotesPreview(value => !value)} className="border-[#C7CCD1] bg-white text-xs text-[#252624] hover:bg-[#F1F2F1]">{showNotesPreview ? "Hide export preview" : "Preview export"}</Button><Button type="button" variant="outline" onClick={downloadNotes} className="border-[#6B706D] bg-white text-xs text-[#252624] hover:bg-[#F1F2F1]">Download notes (.md)</Button></div></div>
+                {showNotesPreview ? <pre aria-label="Notes export preview" className="mt-4 max-h-64 overflow-auto whitespace-pre-wrap border border-[#D8DBDE] bg-[#FBFBFA] p-3 font-mono text-xs leading-5 text-[#42464A]">{notesDownloadPreview}</pre> : null}
                 {activeNotes.length > 0 ? <ol className="mt-6 divide-y divide-[#E5E7E8] border-t border-[#E5E7E8]">{activeNotes.map(note => <li key={note.id} className="py-4"><div className="flex items-start gap-3"><button type="button" onClick={() => seekToNoteTimestamp(note.timestamp)} className="shrink-0 border border-[#C7CCD1] bg-[#FBFBFA] px-2 py-1 font-mono text-xs font-semibold text-[#252624] transition hover:border-[#252624]">{note.timestamp}</button><p className="pt-0.5 text-sm leading-6 text-[#50545A]">{note.text}</p></div></li>)}</ol> : <p className="mt-5 border-t border-[#E5E7E8] pt-5 text-sm leading-6 text-[#777B80]">No notes for this lesson yet. Use the current timestamp or type your own, then save a note.</p>}
               </section>
             </aside>

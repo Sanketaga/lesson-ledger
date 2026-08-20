@@ -106,6 +106,10 @@ describe("Course timestamped notes", () => {
     expect(await screen.findByText("Write a note before saving it.")).toBeTruthy();
     await user.type(screen.getByLabelText("Note for the current lesson"), "Confirm the install path.");
     await user.click(screen.getByRole("button", { name: "Save timestamped note" }));
+    await user.click(screen.getByRole("button", { name: "Preview export" }));
+    const preview = await screen.findByLabelText("Notes export preview");
+    expect(preview.textContent).toContain("Confirm the install path.");
+    expect(preview.textContent).toMatch(/https:\/\/www\.youtube\.com\/watch\?v=/);
     await user.click(screen.getByRole("button", { name: "Download notes (.md)" }));
 
     expect(createObjectURL).toHaveBeenCalledOnce();
