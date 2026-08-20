@@ -63,7 +63,7 @@ describe("Course timestamped notes", () => {
     await user.type(noteEditor, "Check the interpreter path before the first run.");
     const timestampInput = screen.getByLabelText("Note timestamp");
     fireEvent.change(timestampInput, { target: { value: "1:15" } });
-    await user.click(screen.getByRole("button", { name: "Save note" }));
+    await user.click(screen.getByRole("button", { name: "Save timestamped note" }));
 
     expect(await screen.findByText("Check the interpreter path before the first run.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "1:15" })).toBeTruthy();
@@ -81,7 +81,7 @@ describe("Course timestamped notes", () => {
     const view = render(<Course />);
 
     await user.type(await screen.findByLabelText("Note for the current lesson"), "Use the official installer for this step.");
-    await user.click(screen.getByRole("button", { name: "Save note" }));
+    await user.click(screen.getByRole("button", { name: "Save timestamped note" }));
     expect(await screen.findByText("Use the official installer for this step.")).toBeTruthy();
 
     mocks.liveSearchData = liveCourse("replacement-setup-video");
@@ -92,5 +92,26 @@ describe("Course timestamped notes", () => {
       const stored = JSON.parse(localStorage.getItem("lesson-ledger:learning:python") || "{}");
       expect(stored.notes[0].lessonId).toBe("module:python:setup");
     });
+  });
+
+  it("gives clear save feedback and downloads notes with lesson links", async () => {
+    const user = userEvent.setup();
+    const createObjectURL = vi.fn(() => "blob:notes-download");
+    const revokeObjectURL = vi.fn();
+    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
+    render(<Course />);
+
+    await user.click(screen.getByRole("button", { name: "Save timestamped note" }));
+    expect(await screen.findByText("Write a note before saving it.")).toBeTruthy();
+    await user.type(screen.getByLabelText("Note for the current lesson"), "Confirm the install path.");
+    await user.click(screen.getByRole("button", { name: "Save timestamped note" }));
+    await user.click(screen.getByRole("button", { name: "Download notes (.md)" }));
+
+    expect(createObjectURL).toHaveBeenCalledOnce();
+    expect(click).toHaveBeenCalledOnce();
+    expect(await screen.findByText("Notes downloaded with lesson links and timestamps.")).toBeTruthy();
+    click.mockRestore();
+    vi.unstubAllGlobals();
   });
 });

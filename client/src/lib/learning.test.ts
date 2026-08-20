@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { completeLesson, formatTimestamp, learningNoteScopeId, learningStorageKey, mergeLearningRecord, timestampToSeconds } from "./learning";
+import { completeLesson, formatNotesDownload, formatTimestamp, learningNoteScopeId, learningStorageKey, mergeLearningRecord, timestampToSeconds } from "./learning";
 
 describe("student learning record", () => {
   it("hydrates safe defaults while retaining a student’s saved choices", () => {
@@ -25,5 +25,22 @@ describe("student learning record", () => {
     expect(formatTimestamp("around four minutes")).toBe("00:00");
     expect(timestampToSeconds("4:05")).toBe(245);
     expect(timestampToSeconds("1:02:03")).toBe(3723);
+  });
+
+  it("formats downloadable notes with their lesson link and original timestamp", () => {
+    const markdown = formatNotesDownload("Python", [{
+      id: "note-1",
+      lessonId: "module:python:setup",
+      lessonTitle: "Python setup lesson",
+      roadmapModuleTitle: "Setup & first program",
+      videoUrl: "https://www.youtube.com/watch?v=setup-video",
+      timestamp: "1:15",
+      text: "Use the current stable Python release.",
+      createdAt: 1,
+    }]);
+    expect(markdown).toContain("# Lesson Ledger notes: Python");
+    expect(markdown).toContain("**Timestamp:** 1:15");
+    expect(markdown).toContain("[Python setup lesson](https://www.youtube.com/watch?v=setup-video)");
+    expect(markdown).toContain("Use the current stable Python release.");
   });
 });

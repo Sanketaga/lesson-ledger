@@ -4,6 +4,9 @@ export type TimestampedNote = {
   timestamp: string;
   text: string;
   createdAt: number;
+  lessonTitle?: string;
+  videoUrl?: string;
+  roadmapModuleTitle?: string;
 };
 
 export type LearningRecord = {
@@ -35,6 +38,20 @@ export function learningStorageKey(courseQuery: string) {
 export function learningNoteScopeId(courseQuery: string, lessonId: string, roadmapModuleId?: string) {
   const course = courseQuery.trim().toLowerCase();
   return roadmapModuleId ? `module:${course}:${roadmapModuleId}` : `lesson:${lessonId}`;
+}
+
+export function formatNotesDownload(courseTopic: string, notes: TimestampedNote[]) {
+  const title = courseTopic.trim() || "Lesson Ledger course";
+  const entries = [...notes]
+    .sort((left, right) => left.createdAt - right.createdAt)
+    .map((note, index) => {
+      const lesson = note.roadmapModuleTitle || note.lessonTitle || "Course lesson";
+      const video = note.videoUrl
+        ? `[${note.lessonTitle || "Open lesson"}](${note.videoUrl})`
+        : "Link unavailable for an older saved note";
+      return `## ${index + 1}. ${lesson}\n\n- **Timestamp:** ${formatTimestamp(note.timestamp)}\n- **Video:** ${video}\n\n${note.text}`;
+    });
+  return `# Lesson Ledger notes: ${title}\n\n${entries.length ? entries.join("\n\n---\n\n") : "No timestamped notes have been saved yet."}\n`;
 }
 
 export function mergeLearningRecord(value: Partial<LearningRecord> | null | undefined): LearningRecord {

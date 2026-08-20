@@ -21,6 +21,7 @@ import {
 import {
   completeLesson,
   EMPTY_LEARNING_RECORD,
+  formatNotesDownload,
   formatTimestamp,
   learningNoteScopeId,
   learningStorageKey,
@@ -62,6 +63,7 @@ type CourseLesson = {
   note: string;
   thumbnail: string;
   embedUrl: string;
+  videoUrl: string;
   source: "catalog" | "live";
   learningStage?: string;
   roadmapModuleId?: string;
@@ -86,6 +88,7 @@ function fromCatalog(video: CatalogVideo): CourseLesson {
     note: video.note,
     thumbnail: video.thumbnail,
     embedUrl: video.embedUrl,
+    videoUrl: video.videoUrl,
     source: "catalog",
   };
 }
@@ -102,6 +105,7 @@ export default function Course() {
   const [learningReady, setLearningReady] = useState(false);
   const [noteDraft, setNoteDraft] = useState("");
   const [noteTimestamp, setNoteTimestamp] = useState("00:00");
+  const [noteFeedback, setNoteFeedback] = useState<string | null>(null);
   const [recallDraft, setRecallDraft] = useState("");
   const [showRecall, setShowRecall] = useState(false);
   const [autoAdvanceTarget, setAutoAdvanceTarget] = useState<number | null>(null);
@@ -145,6 +149,7 @@ export default function Course() {
         note: result.note,
         thumbnail: result.thumbnail || `https://i.ytimg.com/vi/${result.videoId}/hqdefault.jpg`,
         embedUrl: `https://www.youtube-nocookie.com/embed/${result.videoId}?rel=0`,
+        videoUrl: `https://www.youtube.com/watch?v=${result.videoId}`,
         source: "live" as const,
         learningStage: result.learningStage,
         roadmapModuleId: result.roadmapModuleId,
@@ -175,6 +180,7 @@ export default function Course() {
           note: l.note,
           thumbnail: l.thumbnail,
           embedUrl: l.embedUrl,
+          videoUrl: l.videoUrl,
           source: l.source,
           learningStage: l.learningStage,
         })),
@@ -395,6 +401,7 @@ export default function Course() {
     if (!activeLesson) return;
     setRecallDraft(learningRecord.recallAnswers[activeLesson.id] || "");
     setNoteTimestamp("00:00");
+    setNoteFeedback(null);
   }, [activeLesson?.id, learningRecord.recallAnswers]);
 
   useEffect(() => {
@@ -441,19 +448,49 @@ export default function Course() {
   };
 
   const saveNote = () => {
-    if (!activeLesson || !noteDraft.trim()) return;
+    if (!activeLesson) {
+      setNoteFeedback("Choose a lesson before saving a note.");
+      return;
+    }
+    if (!noteDraft.trim()) {
+      setNoteFeedback("Write a note before saving it.");
+      return;
+    }
+    const savedTimestamp = formatTimestamp(noteTimestamp);
     setLearningRecord(record => ({
       ...record,
       notes: [...record.notes, {
         id: typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`,
         lessonId: learningNoteScopeId(courseTopic, activeLesson.id, activeLesson.roadmapModuleId),
-        timestamp: formatTimestamp(noteTimestamp),
+        timestamp: savedTimestamp,
         text: noteDraft.trim(),
         createdAt: Date.now(),
+        lessonTitle: activeLesson.title,
+        videoUrl: activeLesson.videoUrl,
+        roadmapModuleTitle: activeLesson.roadmapModuleTitle,
       }],
     }));
     setNoteDraft("");
-    toast.success("Timestamped note saved", { description: `Attached to ${formatTimestamp(noteTimestamp)} in this lesson.` });
+    setNoteFeedback(`Saved at ${savedTimestamp}.`);
+    toast.success("Timestamped note saved", { description: `Attached to ${savedTimestamp} in this lesson.` });
+  };
+
+  const downloadNotes = () => {
+    if (learningRecord.notes.length === 0) {
+      setNoteFeedback("Save at least one note before downloading your notes.");
+      return;
+    }
+    const markdown = formatNotesDownload(courseTopic, learningRecord.notes);
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `${courseTopic.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "lesson-ledger"}-notes.md`;
+    document.body.append(anchor);
+    anchor.click();
+    anchor.remove();
+    URL.revokeObjectURL(url);
+    setNoteFeedback("Notes downloaded with lesson links and timestamps.");
   };
 
   const captureCurrentTimestamp = () => {
@@ -570,16 +607,17 @@ export default function Course() {
               <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Course progress</p><p className="mt-1 text-sm text-[#6F7376]">{courseProgress}% complete</p></div><div className="text-sm text-[#6F7376]"><button type="button" onClick={() => { localStorage.removeItem(`lesson-ledger:playlist:${encodeURIComponent(courseTopic)}`); toast.success("Removed curated playlist"); }} className="text-xs underline">Remove playlist</button></div></div></div>
 
               <section aria-label="Timestamped notes" className="border border-[#DCE0E2] bg-white p-5 sm:p-6">
-                <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Timestamped notes</p><p className="mt-1 text-sm text-[#6F7376]">Save a thought at the exact point in this lesson.</p></div><NotebookPen className="h-5 w-5 shrink-0 text-[#555954]" /></div>
-                <div className="mt-5 space-y-3">
-                  <label className="sr-only" htmlFor="lesson-note">Note for the current lesson</label>
+                <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Timestamped notes</p><p className="mt-1 text-sm text-[#6F7376]">Save a thought at the exact point in this lesson, then download every note with its video link.</p></div><NotebookPen className="h-5 w-5 shrink-0 text-[#555954]" /></div>
+                <form className="mt-5 space-y-3" onSubmit={event => { event.preventDefault(); saveNote(); }}>
+                  <label className="text-xs font-semibold text-[#4F5357]" htmlFor="lesson-note">Note for the current lesson</label>
                   <textarea id="lesson-note" value={noteDraft} onChange={event => setNoteDraft(event.target.value)} onKeyDown={event => { if ((event.metaKey || event.ctrlKey) && event.key === "Enter") { event.preventDefault(); saveNote(); } }} placeholder="Write what you want to remember…" className="min-h-24 w-full resize-y border border-[#D8DBDE] bg-[#FBFBFA] p-3 text-sm leading-6 outline-none transition focus:border-[#252624]" />
                   <div className="flex flex-col gap-2 sm:flex-row">
                     <label className="flex min-w-0 flex-1 items-center gap-2 border border-[#D8DBDE] bg-[#FBFBFA] px-3 py-2 text-sm text-[#555954]"><Timer className="h-4 w-4 shrink-0" /><span className="sr-only">Timestamp</span><input aria-label="Note timestamp" value={noteTimestamp} onChange={event => setNoteTimestamp(event.target.value)} className="min-w-0 flex-1 bg-transparent font-mono outline-none" inputMode="numeric" placeholder="00:00" /></label>
                     <Button type="button" variant="outline" onClick={captureCurrentTimestamp} className="border-[#C7CCD1] bg-white text-xs">Use {formatPlayerElapsedTime(playerSeconds)}</Button>
-                    <Button type="button" onClick={saveNote} disabled={!noteDraft.trim() || !activeLesson} className="bg-[#252624] text-xs text-white hover:bg-[#3A3B3A]">Save note</Button>
+                    <Button type="submit" className="bg-[#252624] text-xs text-white hover:bg-[#3A3B3A]">Save timestamped note</Button>
                   </div>
-                </div>
+                </form>
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-[#E5E7E8] pt-4"><p role="status" aria-live="polite" className="text-xs leading-5 text-[#62676B]">{noteFeedback || "Your notes stay with this course in this browser."}</p><Button type="button" variant="outline" onClick={downloadNotes} className="border-[#6B706D] bg-white text-xs text-[#252624] hover:bg-[#F1F2F1]">Download notes (.md)</Button></div>
                 {activeNotes.length > 0 ? <ol className="mt-6 divide-y divide-[#E5E7E8] border-t border-[#E5E7E8]">{activeNotes.map(note => <li key={note.id} className="py-4"><div className="flex items-start gap-3"><button type="button" onClick={() => seekToNoteTimestamp(note.timestamp)} className="shrink-0 border border-[#C7CCD1] bg-[#FBFBFA] px-2 py-1 font-mono text-xs font-semibold text-[#252624] transition hover:border-[#252624]">{note.timestamp}</button><p className="pt-0.5 text-sm leading-6 text-[#50545A]">{note.text}</p></div></li>)}</ol> : <p className="mt-5 border-t border-[#E5E7E8] pt-5 text-sm leading-6 text-[#777B80]">No notes for this lesson yet. Use the current timestamp or type your own, then save a note.</p>}
               </section>
             </aside>

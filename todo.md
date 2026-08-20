@@ -127,4 +127,13 @@
 - [x] Add a Course-level regression that renders the timestamped-note UI and verifies entry, save, and display for the active lesson.
 - [x] Add an integration regression confirming a module-scoped note remains visible after its live video changes.
 - [x] Re-verify stable module-scoped note persistence through a browser save and reload sequence.
-- [ ] Deploy and verify the timestamped-notes repair in production.
+- [x] Deploy and verify the timestamped-notes repair in production.
+- [x] Save a timestamped note on the deployed production course and verify it appears immediately in the note list.
+- [x] Reload the deployed course after saving a production note and confirm the note persists for the active roadmap module.
+- [x] Reproduce and repair the reported production timestamped-note save failure, including a reliable visible save action.
+- [x] Add a downloadable notes export containing the course topic, lesson title, direct video link, timestamp, and note text.
+- [x] Add automated coverage for note export formatting and browser verification for save plus download behavior.
+- [ ] Verify the form-based note save in the browser shows inline success feedback and the rendered note entry.
+- [ ] Trigger the browser download and confirm the exported file contains the lesson title, video link, timestamp, and note text.
+- [ ] Deploy and verify the latest form-based notes repair and export behavior in production.
+- [ ] Deploy and verify the repaired notes save flow and downloadable export in production.
