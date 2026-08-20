@@ -86,8 +86,8 @@
 - [x] Add state-machine coverage for buffered, cued, error, and guarded native-start player behavior.
 - [x] Verify the temporary native-start path permits only in-video playback and does not re-expose external navigation.
 - [x] Exercise deployed Pause, 5-second seek, and Fullscreen controls without leaving the focused course route.
-- [ ] Confirm the deployed player’s current playback time advances after it reports `Playing lesson.`.
-- [ ] Capture direct observable evidence that the deployed player time increases after entering `Playing lesson.`.
+- [x] Confirm the deployed player’s current playback time advances after it reports `Playing lesson.`.
+- [x] Capture direct observable evidence that the deployed player time increases after entering `Playing lesson.`.
 - [x] Diagnose why broad learning requests return news, music, or unrelated media instead of instructional videos.
 - [x] Define and agree on learning-intent filtering, curricular progression, and course quality criteria.
 - [x] Implement and test topic-aware educational ranking and ordered course assembly for representative searches such as Hindi.
@@ -119,7 +119,8 @@
 - [x] Assign roadmap module metadata to catalog fallback lessons so every delivered course lesson maps to a named roadmap module.
 - [x] Add duplicate-course avoidance regressions for roadmap-first technical, academic, practical, and language courses.
 - [x] Push, deploy, and verify fully populated roadmap-first courses in production.
-- [ ] Capture a stable, on-record deployed player view showing `Playing lesson.` and a non-zero elapsed time without refreshing the course.
+- [x] Capture a stable, on-record deployed player view showing `Playing lesson.` and a non-zero elapsed time without refreshing the course.
+- [ ] Capture and preserve a stable deployed browser view showing `Playing lesson.` with a non-zero Lesson player time without refreshing the course.
 - [x] Diagnose why timestamped notes cannot be created or displayed in the course workspace.
 - [x] Repair timestamp capture and note-save behavior for the active lesson.
 - [x] Add regression coverage and verify timestamped notes in the browser.
@@ -143,5 +144,8 @@
 - [x] Remove the in-app Markdown export preview and fixed `.md` download flow.
 - [x] Add a student-facing export format selector for TXT, DOC, PDF, and PNG.
 - [x] Generate all selected export formats with the course, lesson title, direct video link, timestamp, and note text.
-- [ ] Add regression coverage and browser verification for every selectable notes-download format.
-- [ ] Deploy and verify the revised multi-format notes export in production.
+- [x] Add regression coverage and browser verification for every selectable notes-download format.
+- [x] Deploy and verify the revised multi-format notes export in production.
+- [x] Append each note timestamp to its exported video link so opening the link begins at the recorded moment.
+- [x] Add regression coverage for timestamp-link generation across TXT, DOC, PDF, and PNG exports.
+- [ ] Deploy and verify timestamp-aware video links in production.

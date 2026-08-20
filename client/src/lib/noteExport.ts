@@ -1,4 +1,4 @@
-import { formatTimestamp, type TimestampedNote } from "./learning";
+import { formatTimestamp, timestampToSeconds, type TimestampedNote } from "./learning";
 
 export type NotesExportFormat = "txt" | "doc" | "pdf" | "png";
 
@@ -14,12 +14,24 @@ export function getNotesExportFileName(courseTopic: string, format: NotesExportF
   return `${stem}-notes.${format}`;
 }
 
+/** Produces a shareable lesson URL that starts at the moment the note was recorded. */
+export function getTimestampedVideoUrl(videoUrl: string | undefined, timestamp: string) {
+  if (!videoUrl) return undefined;
+  try {
+    const url = new URL(videoUrl);
+    url.searchParams.set("t", `${timestampToSeconds(timestamp)}s`);
+    return url.toString();
+  } catch {
+    return videoUrl;
+  }
+}
+
 export function formatNotesText(courseTopic: string, notes: TimestampedNote[]) {
   const title = courseTopic.trim() || "Lesson Ledger course";
   const entries = [...notes].sort((left, right) => left.createdAt - right.createdAt).map((note, index) => {
     const module = note.roadmapModuleTitle || "Course lesson";
     const lesson = note.lessonTitle || "Saved lesson";
-    const video = note.videoUrl || "Link unavailable for an older saved note";
+    const video = getTimestampedVideoUrl(note.videoUrl, note.timestamp) || "Link unavailable for an older saved note";
     return `${index + 1}. ${module}\nLesson: ${lesson}\nTimestamp: ${formatTimestamp(note.timestamp)}\nVideo: ${video}\nNote: ${note.text}`;
   });
   return `LESSON LEDGER NOTES\nCourse: ${title}\n\n${entries.length ? entries.join("\n\n---\n\n") : "No timestamped notes have been saved yet."}\n`;
@@ -29,7 +41,8 @@ export function formatNotesDocHtml(courseTopic: string, notes: TimestampedNote[]
   const escape = (value: string) => value.replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char] || char);
   const title = escape(courseTopic.trim() || "Lesson Ledger course");
   const entries = [...notes].sort((left, right) => left.createdAt - right.createdAt).map((note, index) => {
-    const link = note.videoUrl ? `<a href="${escape(note.videoUrl)}">${escape(note.lessonTitle || "Open lesson")}</a>` : "Link unavailable for an older saved note";
+    const timestampedVideoUrl = getTimestampedVideoUrl(note.videoUrl, note.timestamp);
+    const link = timestampedVideoUrl ? `<a href="${escape(timestampedVideoUrl)}">${escape(note.lessonTitle || "Open lesson")}</a>` : "Link unavailable for an older saved note";
     return `<section><h2>${index + 1}. ${escape(note.roadmapModuleTitle || "Course lesson")}</h2><p><strong>Lesson:</strong> ${escape(note.lessonTitle || "Saved lesson")}<br><strong>Timestamp:</strong> ${escape(formatTimestamp(note.timestamp))}<br><strong>Video:</strong> ${link}</p><p>${escape(note.text).replace(/\n/g, "<br>")}</p></section>`;
   });
   return `<!doctype html><html><head><meta charset="utf-8"><title>Lesson Ledger notes</title><style>body{font-family:Arial,sans-serif;color:#20211f;line-height:1.55;padding:32px}h1{font-size:26px}h2{font-size:18px;margin-top:28px}a{color:#1f4f8f;word-break:break-all}section{border-top:1px solid #d9dddf}</style></head><body><h1>Lesson Ledger notes: ${title}</h1>${entries.join("") || "<p>No timestamped notes have been saved yet.</p>"}</body></html>`;
@@ -74,7 +87,7 @@ async function createNotesPng(courseTopic: string, notes: TimestampedNote[]) {
       `Module: ${note.roadmapModuleTitle || "Course lesson"}`,
       `Lesson: ${note.lessonTitle || "Saved lesson"}`,
       `Timestamp: ${formatTimestamp(note.timestamp)}`,
-      `Video: ${note.videoUrl || "Link unavailable for an older saved note"}`,
+      `Video: ${getTimestampedVideoUrl(note.videoUrl, note.timestamp) || "Link unavailable for an older saved note"}`,
       ...wrapCanvasText(context, `Note: ${note.text}`, contentWidth),
     ];
     return lines;
@@ -132,7 +145,7 @@ async function downloadPdf(courseTopic: string, notes: TimestampedNote[]) {
     write(`${index + 1}. ${note.roadmapModuleTitle || "Course lesson"}`, 14, true);
     write(`Lesson: ${note.lessonTitle || "Saved lesson"}`);
     write(`Timestamp: ${formatTimestamp(note.timestamp)}`);
-    write(`Video: ${note.videoUrl || "Link unavailable for an older saved note"}`);
+    write(`Video: ${getTimestampedVideoUrl(note.videoUrl, note.timestamp) || "Link unavailable for an older saved note"}`);
     write(`Note: ${note.text}`);
   });
   pdf.save(getNotesExportFileName(courseTopic, "pdf"));
