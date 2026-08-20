@@ -137,5 +137,6 @@
 - [x] Trigger the browser download and confirm the exported file contains the lesson title, video link, timestamp, and note text.
 - [x] Deploy and verify the latest form-based notes repair and export behavior in production.
 - [x] Deploy and verify the repaired notes save flow and downloadable export in production.
-- [ ] Add an in-app Markdown export preview so students can inspect lesson links, timestamps, and note text before downloading.
-- [ ] Verify the previewed export matches the downloaded note content in production.
+- [x] Add an in-app Markdown export preview so students can inspect lesson links, timestamps, and note text before downloading.
+- [x] Verify the previewed export matches the downloaded note content in production.
+- [x] Trigger the final preview-enabled production download after inspecting its Markdown content to confirm the same export path is used.
