@@ -97,6 +97,22 @@ describe("Course timestamped notes", () => {
     });
   });
 
+  it("shows actionable course progress and lets a student toggle the active lesson’s completion", async () => {
+    const user = userEvent.setup();
+    render(<Course />);
+
+    expect(await screen.findByText("0 of 1 lesson complete")).toBeTruthy();
+    expect(screen.getByRole("progressbar", { name: "Course completion" }).getAttribute("aria-valuenow")).toBe("0");
+    await user.click(screen.getByRole("button", { name: "Mark current lesson complete" }));
+
+    expect(await screen.findByText("1 of 1 lesson complete")).toBeTruthy();
+    expect(screen.getByRole("progressbar", { name: "Course completion" }).getAttribute("aria-valuenow")).toBe("100");
+    expect(screen.getByText("Course complete. Revisit any lesson whenever you need a refresher.")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Mark current lesson incomplete" }));
+
+    expect(await screen.findByText("0 of 1 lesson complete")).toBeTruthy();
+  });
+
   it("keeps a saved note visible when live discovery replaces the video for the same roadmap module", async () => {
     mocks.liveSearchData = liveCourse("initial-setup-video");
     const user = userEvent.setup();

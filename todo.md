@@ -154,3 +154,7 @@
 - [x] Add a visible delete control for each saved timestamped note and persist the removal.
 - [x] Add regression coverage and browser verification for exact timestamp saving and note deletion.
 - [x] Deploy and verify the timestamp-and-delete repair in production.
+- [x] Improve Course Progress with a clear completed-versus-total summary, visual completion indicator, and next-step guidance.
+- [x] Make lesson completion and uncompletion controls explicit and keep Course Progress synchronized with the active lesson.
+- [x] Add regression coverage and browser verification for the enhanced Course Progress workflow.
+- [ ] Deploy and verify the improved Course Progress experience in production.

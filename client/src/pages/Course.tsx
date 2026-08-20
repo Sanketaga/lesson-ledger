@@ -204,6 +204,11 @@ export default function Course() {
   const activeLesson = courseLessons[activeIndex];
   const completedCount = courseLessons.filter(lesson => learningRecord.completedLessonIds.includes(lesson.id)).length;
   const courseProgress = courseLessons.length ? Math.round((completedCount / courseLessons.length) * 100) : 0;
+  const isActiveLessonComplete = Boolean(activeLesson && learningRecord.completedLessonIds.includes(activeLesson.id));
+  const nextIncompleteIndex = courseLessons.findIndex((lesson, index) => index > activeIndex && !learningRecord.completedLessonIds.includes(lesson.id));
+  const firstIncompleteIndex = courseLessons.findIndex(lesson => !learningRecord.completedLessonIds.includes(lesson.id));
+  const suggestedLessonIndex = nextIncompleteIndex >= 0 ? nextIncompleteIndex : firstIncompleteIndex;
+  const suggestedLesson = suggestedLessonIndex >= 0 ? courseLessons[suggestedLessonIndex] : null;
   const activeNoteScopeId = activeLesson ? learningNoteScopeId(courseTopic, activeLesson.id, activeLesson.roadmapModuleId) : null;
   const activeNotes = activeLesson && activeNoteScopeId
     ? learningRecord.notes.filter(note => note.lessonId === activeNoteScopeId || note.lessonId === activeLesson.id)
@@ -543,6 +548,20 @@ export default function Course() {
     }
   };
 
+  const markCurrentLessonIncomplete = () => {
+    if (!activeLesson) return;
+    setLearningRecord(record => ({ ...record, completedLessonIds: record.completedLessonIds.filter(id => id !== activeLesson.id) }));
+    setAutoAdvanceTarget(null);
+    setShowRecall(false);
+    toast.success("Lesson marked incomplete");
+  };
+
+  const togglePlaylistLessonCompletion = (lessonId: string) => {
+    setLearningRecord(record => record.completedLessonIds.includes(lessonId)
+      ? { ...record, completedLessonIds: record.completedLessonIds.filter(id => id !== lessonId) }
+      : completeLesson(record, lessonId));
+  };
+
   return (
     <div className="min-h-screen bg-[#F4F5F6] text-[#20211F]">
       <header className="border-b border-[#DFE1E3] bg-[#FBFBFA] px-5 py-4 sm:px-8 lg:px-12">
@@ -618,10 +637,10 @@ export default function Course() {
             <aside className="space-y-5">
               <div className="border border-[#DCE0E2] bg-[#FBFBFA] xl:max-h-[50vh] xl:overflow-y-auto">
                 <div className="border-b border-[#E0E3E5] px-5 py-5 sm:px-6"><div className="flex items-center justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Curated playlist</p><p className="mt-1 text-sm text-[#6F7376]">An ordered set of lessons for this topic.</p></div></div></div>
-                <ol className="divide-y divide-[#E1E4E6]">{courseLessons.map((lesson, index) => { const isComplete = learningRecord.completedLessonIds.includes(lesson.id); return <li key={lesson.id} className="px-5 py-4 sm:px-6"><div className="flex items-center justify-between"><div><button type="button" onClick={() => selectLesson(index, true)} className="text-left"><div className="font-medium">{lesson.title}</div><div className="text-xs text-[#6F7376]">{lesson.roadmapModuleTitle ?? lesson.learningStage ?? "Focused lesson"} · {lesson.channel} · {lesson.duration}</div></button></div><div className="flex items-center gap-2"><button type="button" onClick={() => { setLearningRecord(r => completeLesson(r, lesson.id)); toast.success("Marked complete"); }} className="inline-flex items-center gap-2 rounded bg-white px-2 py-1 text-xs">{isComplete ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Check className="h-4 w-4" />}</button></div></div></li>})}</ol>
+                <ol className="divide-y divide-[#E1E4E6]">{courseLessons.map((lesson, index) => { const isComplete = learningRecord.completedLessonIds.includes(lesson.id); return <li key={lesson.id} className="px-5 py-4 sm:px-6"><div className="flex items-center justify-between"><div><button type="button" onClick={() => selectLesson(index, true)} className="text-left"><div className="font-medium">{lesson.title}</div><div className="text-xs text-[#6F7376]">{lesson.roadmapModuleTitle ?? lesson.learningStage ?? "Focused lesson"} · {lesson.channel} · {lesson.duration}</div></button></div><div className="flex items-center gap-2"><button type="button" onClick={() => togglePlaylistLessonCompletion(lesson.id)} aria-label={`${isComplete ? "Mark incomplete" : "Mark complete"}: ${lesson.title}`} className="inline-flex items-center gap-2 rounded bg-white px-2 py-1 text-xs">{isComplete ? <CheckCircle2 className="h-4 w-4 text-green-600" /> : <Check className="h-4 w-4" />}</button></div></div></li>})}</ol>
               </div>
 
-              <div className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Course progress</p><p className="mt-1 text-sm text-[#6F7376]">{courseProgress}% complete</p></div><div className="text-sm text-[#6F7376]"><button type="button" onClick={() => { localStorage.removeItem(`lesson-ledger:playlist:${encodeURIComponent(courseTopic)}`); toast.success("Removed curated playlist"); }} className="text-xs underline">Remove playlist</button></div></div></div>
+              <section aria-label="Course progress" className="border border-[#DCE0E2] bg-white p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Course progress</p><p className="mt-2 font-display text-3xl tracking-[-0.04em] text-[#252624]">{courseProgress}%</p><p className="mt-1 text-sm text-[#6F7376]">{completedCount} of {courseLessons.length} lesson{courseLessons.length === 1 ? "" : "s"} complete</p></div><button type="button" onClick={() => { localStorage.removeItem(`lesson-ledger:playlist:${encodeURIComponent(courseTopic)}`); toast.success("Removed curated playlist"); }} className="text-xs text-[#6F7376] underline">Remove playlist</button></div><div role="progressbar" aria-label="Course completion" aria-valuemin={0} aria-valuemax={100} aria-valuenow={courseProgress} className="mt-5 h-2 overflow-hidden bg-[#E7E9EA]"><div className="h-full bg-[#252624] transition-[width] duration-200" style={{ width: `${courseProgress}%` }} /></div><div className="mt-4 border-t border-[#E5E7E8] pt-4"><p className="text-sm leading-6 text-[#62676B]">{courseProgress === 100 ? "Course complete. Revisit any lesson whenever you need a refresher." : isActiveLessonComplete ? "This lesson is complete. Continue to your next unfinished lesson when ready." : "Complete the current lesson to keep your learning path moving."}</p><div className="mt-3 flex flex-wrap gap-2"><Button type="button" variant={isActiveLessonComplete ? "outline" : "default"} onClick={isActiveLessonComplete ? markCurrentLessonIncomplete : markLessonComplete} className={isActiveLessonComplete ? "border-[#6B706D] bg-white text-xs text-[#252624]" : "bg-[#252624] text-xs text-white hover:bg-[#3A3B3A]"}>{isActiveLessonComplete ? "Mark current lesson incomplete" : "Mark current lesson complete"}</Button>{suggestedLesson && suggestedLessonIndex !== activeIndex ? <Button type="button" variant="outline" onClick={() => selectLesson(suggestedLessonIndex)} className="border-[#C7CCD1] bg-white text-xs text-[#252624]">Continue: lesson {suggestedLessonIndex + 1}</Button> : null}</div></div></section>
 
               <section aria-label="Timestamped notes" className="border border-[#DCE0E2] bg-white p-5 sm:p-6">
                 <div className="flex items-start justify-between gap-4"><div><p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[#6F7376]">Timestamped notes</p><p className="mt-1 text-sm text-[#6F7376]">Save a thought at the exact point in this lesson, then download every note with its video link.</p></div><NotebookPen className="h-5 w-5 shrink-0 text-[#555954]" /></div>
