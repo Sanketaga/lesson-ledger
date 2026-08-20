@@ -148,4 +148,4 @@
 - [x] Deploy and verify the revised multi-format notes export in production.
 - [x] Append each note timestamp to its exported video link so opening the link begins at the recorded moment.
 - [x] Add regression coverage for timestamp-link generation across TXT, DOC, PDF, and PNG exports.
-- [ ] Deploy and verify timestamp-aware video links in production.
+- [x] Deploy and verify timestamp-aware video links in production.
