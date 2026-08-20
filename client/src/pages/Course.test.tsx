@@ -6,7 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import Course from "./Course";
 
 const setLocation = vi.fn();
-const mocks = vi.hoisted(() => ({ liveSearchData: undefined as any }));
+const mocks = vi.hoisted(() => ({ liveSearchData: undefined as any, downloadNotesExport: vi.fn().mockResolvedValue(undefined) }));
 
 vi.mock("wouter", () => ({
   useLocation: () => ["/learn/python", setLocation],
@@ -28,6 +28,11 @@ vi.mock("@/lib/youtube", async importOriginal => {
   return { ...actual, loadYouTubeIframeApi: () => Promise.reject(new Error("Not needed for notes UI testing")) };
 });
 
+vi.mock("@/lib/noteExport", async importOriginal => {
+  const actual = await importOriginal<typeof import("@/lib/noteExport")>();
+  return { ...actual, downloadNotesExport: mocks.downloadNotesExport };
+});
+
 vi.mock("sonner", () => ({ toast: { success: vi.fn() } }));
 
 describe("Course timestamped notes", () => {
@@ -36,6 +41,7 @@ describe("Course timestamped notes", () => {
     localStorage.clear();
     setLocation.mockClear();
     mocks.liveSearchData = undefined;
+    mocks.downloadNotesExport.mockClear();
   });
 
   const liveCourse = (setupVideoId: string) => ({
@@ -94,28 +100,18 @@ describe("Course timestamped notes", () => {
     });
   });
 
-  it("gives clear save feedback and downloads notes with lesson links", async () => {
+  it("gives clear save feedback and downloads the student-selected format with lesson links", async () => {
     const user = userEvent.setup();
-    const createObjectURL = vi.fn(() => "blob:notes-download");
-    const revokeObjectURL = vi.fn();
-    vi.stubGlobal("URL", { createObjectURL, revokeObjectURL });
-    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => undefined);
     render(<Course />);
 
     await user.click(screen.getByRole("button", { name: "Save timestamped note" }));
     expect(await screen.findByText("Write a note before saving it.")).toBeTruthy();
     await user.type(screen.getByLabelText("Note for the current lesson"), "Confirm the install path.");
     await user.click(screen.getByRole("button", { name: "Save timestamped note" }));
-    await user.click(screen.getByRole("button", { name: "Preview export" }));
-    const preview = await screen.findByLabelText("Notes export preview");
-    expect(preview.textContent).toContain("Confirm the install path.");
-    expect(preview.textContent).toMatch(/https:\/\/www\.youtube\.com\/watch\?v=/);
-    await user.click(screen.getByRole("button", { name: "Download notes (.md)" }));
+    await user.selectOptions(screen.getByLabelText("Notes download format"), "png");
+    await user.click(screen.getByRole("button", { name: "Download PNG" }));
 
-    expect(createObjectURL).toHaveBeenCalledOnce();
-    expect(click).toHaveBeenCalledOnce();
-    expect(await screen.findByText("Notes downloaded with lesson links and timestamps.")).toBeTruthy();
-    click.mockRestore();
-    vi.unstubAllGlobals();
+    await waitFor(() => expect(mocks.downloadNotesExport).toHaveBeenCalledWith("png", "python", expect.arrayContaining([expect.objectContaining({ text: "Confirm the install path." })])));
+    expect(await screen.findByText("PNG notes downloaded with lesson links and timestamps.")).toBeTruthy();
   });
 });

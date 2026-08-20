@@ -140,3 +140,8 @@
 - [x] Add an in-app Markdown export preview so students can inspect lesson links, timestamps, and note text before downloading.
 - [x] Verify the previewed export matches the downloaded note content in production.
 - [x] Trigger the final preview-enabled production download after inspecting its Markdown content to confirm the same export path is used.
+- [x] Remove the in-app Markdown export preview and fixed `.md` download flow.
+- [x] Add a student-facing export format selector for TXT, DOC, PDF, and PNG.
+- [x] Generate all selected export formats with the course, lesson title, direct video link, timestamp, and note text.
+- [ ] Add regression coverage and browser verification for every selectable notes-download format.
+- [ ] Deploy and verify the revised multi-format notes export in production.
