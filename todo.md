@@ -152,5 +152,5 @@
 - [x] Deploy and verify timestamp-aware video links in production.
 - [x] Diagnose and repair timestamp capture so each note saves at the exact selected or current player time.
 - [x] Add a visible delete control for each saved timestamped note and persist the removal.
-- [ ] Add regression coverage and browser verification for exact timestamp saving and note deletion.
-- [ ] Deploy and verify the timestamp-and-delete repair in production.
+- [x] Add regression coverage and browser verification for exact timestamp saving and note deletion.
+- [x] Deploy and verify the timestamp-and-delete repair in production.
